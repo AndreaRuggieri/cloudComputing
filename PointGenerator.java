@@ -11,28 +11,24 @@ public class PointGenerator {
         this.numPoints = numPoints;
     }
 
-    public void generatePointsToFile(String fileName) {
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName))) {
-            for (int i = 1; i <= numPoints; i++) {
-                StringBuilder rowBuilder = new StringBuilder();
-                rowBuilder.append(i).append(", ");
+  public void generatePointsToFile(String fileName) {
+    try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName))) {
+        for (int i = 1; i <= numObjects; i++) {
+            double[] coordinates = new double[dimensions];
 
-                for (int j = 0; j < dimensions; j++) {
-                    double coordinate = getRandomCoordinate();
-                    rowBuilder.append(coordinate);
-
-                    if (j < dimensions - 1) {
-                        rowBuilder.append(", ");
-                    }
-                }
-
-                writer.write(rowBuilder.toString());
-                writer.newLine();
+            for (int j = 0; j < dimensions; j++) {
+                coordinates[j] = getRandomCoordinate();
             }
-        } catch (IOException e) {
-            e.printStackTrace();
+
+            Point point = new Point(i, coordinates);
+            writer.write(point.toString());
+            writer.newLine();
         }
+    } catch (IOException e) {
+        e.printStackTrace();
     }
+}
+
 
     private double getRandomCoordinate() {
         return Math.random() * 100; 
