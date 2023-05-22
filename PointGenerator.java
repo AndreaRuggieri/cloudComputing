@@ -1,86 +1,50 @@
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 public class PointGenerator {
-public static void main(String[] args) {
-    List<Point> points = generatePoints();
+    private int dimensions;
+    private int numPoints;
 
-    // Print points to a file
-    printToFile(points, "points.txt");
-}
-
-public static List<Point> generatePoints() {
-    List<Point> points = new ArrayList<>();
-
-    for (int i = 1; i <= 100; i++) {
-        double x = getRandomCoordinate();
-        double y = getRandomCoordinate();
-        points.add(new Point(i, x, y));
+    public PointGenerator(int dimensions, int numPoints) {
+        this.dimensions = dimensions;
+        this.numPoints = numPoints;
     }
 
-    return points;
-}
+    public void generatePointsToFile(String fileName) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName))) {
+            for (int i = 1; i <= numPoints; i++) {
+                StringBuilder rowBuilder = new StringBuilder();
+                rowBuilder.append(i).append(", ");
 
-public static double getRandomCoordinate() {
-    return Math.random() * 100; // Adjust the range as needed
-}
+                for (int j = 0; j < dimensions; j++) {
+                    double coordinate = getRandomCoordinate();
+                    rowBuilder.append(coordinate);
 
-/**
- * @param points
- * @param fileName
- */
-public static void printToFile(List<Point> points, String fileName) {
-    try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName))) {
-        for (Point point : points) {
-            writer.write(point.toString());
-            writer.newLine();
+                    if (j < dimensions - 1) {
+                        rowBuilder.append(", ");
+                    }
+                }
+
+                writer.write(rowBuilder.toString());
+                writer.newLine();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-    } catch (IOException e) {
-        e.printStackTrace();
+    }
+
+    private double getRandomCoordinate() {
+        return Math.random() * 100; 
+    }
+
+    public static void main(String[] args) {
+        int dimensions = 7; // Number of dimensions for each object
+        int numPoints = 1000; // Number of points to create
+        String fileName = "Points.txt"; // Output file name
+
+        PointGenerator pointGenerator = new PointGenerator(dimensions, numPoints);
+        pointGenerator.generatePointsToFile(fileName);
     }
 }
 
-public static class Point {
-    private int id;
-    private double x;
-    private double y;
-
-    public Point(int id, double x, double y) {
-        this.id = id;
-        this.x = x;
-        this.y = y;
-    }
-
-    public int getId() {
-        return id;
-    }
-
-    public void setId(int id) {
-        this.id = id;
-    }
-
-    public double getX() {
-        return x;
-    }
-
-    public void setX(double x) {
-        this.x = x;
-    }
-
-    public double getY() {
-        return y;
-    }
-
-    public void setY(double y) {
-        this.y = y;
-    }
-
-    @Override
-    public String toString() {
-        return id + ", " + x + ", " + y;
-    }
-}
-}
