@@ -20,7 +20,7 @@ public class PointGenerator {
                 coordinates[j] = getRandomCoordinate();
             }
 
-            Point point = new Point(i, coordinates);
+            Point point = new Point(0, coordinates);
             writer.write(point.toString());
             writer.newLine();
         }
