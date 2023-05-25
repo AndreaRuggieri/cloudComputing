@@ -1,4 +1,5 @@
 package tmp;
+
 import org.apache.hadoop.io.Writable;
 
 public class ClusterSumWritable implements Writable {
@@ -39,5 +40,22 @@ public class ClusterSumWritable implements Writable {
             sumCoordinates[i] = in.readDouble();
         }
         count = in.readInt();
+    }
+
+    private ClusterSumWritable calculateClusterSum(Iterable<PointWritable> values) {
+        int count = 0;
+        double[] sum = null;
+
+        for (PointWritable point : values) {
+            if (sum == null) {
+                sum = new double[point.getCoordinates().length];
+            }
+            for (int i = 0; i < sum.length; i++) {
+                sum[i] += point.getCoordinates()[i];
+            }
+            count++;
+        }
+
+        return new ClusterSumWritable(sum, count);
     }
 }
