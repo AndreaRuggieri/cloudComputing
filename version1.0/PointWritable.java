@@ -1,22 +1,30 @@
 package tmp;
 
 import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.io.IntWritable;
+
+import java.io.DataOutput;
+import java.io.IOException;
+import java.io.DataInput;
+import java.util.Random;
 
 public class PointWritable implements Writable {
     private double[] coordinates;
+    private IntWritable id; // ID field added
 
     public PointWritable() {
-        this(new double[0]);
+        this(new double[0], new IntWritable(-1)); // default id is -1, indicating no id assigned
     }
 
     public static PointWritable[] generateCentroids(int k, int d) {
         PointWritable[] centroidi = new PointWritable[k];
         for (int i = 0; i < k; i++) {
-            PointWritable pw = new PointWritable();
+            PointWritable pw = new PointWritable(new double[d], new IntWritable(i)); // assign id during generation
             for (int j = 0; j < d; j++) {
                 Random random = new Random();
                 pw.set(pw, j, random.nextDouble() * 100);
             }
+            centroidi[i] = pw; // assign the generated PointWritable to the array
         }
         return centroidi;
     }
@@ -25,8 +33,13 @@ public class PointWritable implements Writable {
         pw.getCoordinates()[index] = value;
     }
 
-    public PointWritable(double[] coordinates) {
+    public PointWritable(double[] coordinates, IntWritable id) { // constructor now accepts an id
         this.coordinates = coordinates;
+        this.id = id;
+    }
+
+    public IntWritable getID() { // getter for id
+        return this.id;
     }
 
     public double[] getCoordinates() {
@@ -55,7 +68,7 @@ public class PointWritable implements Writable {
             pw.set(pw, i, val[i]);
     }
 
-    private PointWritable getNearestCentroid(PointWritable point, List<PointWritable> centroids) {
+    public PointWritable getNearestCentroid(PointWritable[] centroids) {
         PointWritable nearestCentroid = null;
         double nearestDistance = Double.MAX_VALUE;
 

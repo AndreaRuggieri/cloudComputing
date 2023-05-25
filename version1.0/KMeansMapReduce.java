@@ -5,6 +5,16 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.io.IntWritable;
+import java.io.DataOutput;
+import java.io.IOException;
+import java.io.DataInput;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.util.GenericOptionsParser;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import tmp.KMeansUtils;
 
 public class KMeansMapReduce {
 
@@ -13,7 +23,7 @@ public class KMeansMapReduce {
 
 	public class KMeansMapper extends Mapper<LongWritable, Text, IntWritable, PointWritable> {
 		private PointWritable[] centroids;
-		private final Text reducerKey = new Text();
+		private final IntWritable reducerKey = new IntWritable();
 		private final PointWritable reducerValue = new PointWritable();
 
 		@Override
@@ -25,16 +35,16 @@ public class KMeansMapReduce {
 		@Override
 		protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
 			// Convert the input text to a PointWritable
-			PointWritable point = textToPoint(value);
+			PointWritable point = textToPoint(value, context);
 
 			// Find the nearest centroid to the point
-			int nearestCentroidId = getNearestCentroid(point);
+			IntWritable nearestCentroidId = point.getNearestCentroid(centroids).getID();
 
 			// Write the centroid id and the point to the context
-			context.write(new IntWritable(nearestCentroidId), point);
+			context.write(nearestCentroidId, point);
 		}
 
-		private PointWritable textToPoint(Text text) {
+		private PointWritable textToPoint(Text text, Context context) throws IOException, InterruptedException {
 			String line = text.toString();
 			if (line == null || line.length() == 0)
 				return null;
@@ -47,8 +57,8 @@ public class KMeansMapReduce {
 					double att = Double.parseDouble(tokens[i]);
 					val[i] = att;
 				}
-				// reducerKey.set(Integer.parseInt(tokens[0]);
-				reducerKey.set(tokens[0]);
+				reducerKey.set(Integer.parseInt(tokens[0]));
+				// reducerKey.set(tokens[0]);
 				reducerValue.set(reducerValue, val);
 				context.write(reducerKey, reducerValue);
 			}
@@ -63,7 +73,7 @@ public class KMeansMapReduce {
 		protected void reduce(IntWritable key, Iterable<PointWritable> values, Context context)
 				throws IOException, InterruptedException {
 			// Calculate the sum of points and the count
-			ClusterSumWritable clusterSum = calculateClusterSum(values);
+			ClusterSumWritable clusterSum = KMeansUtils.calculateClusterSum(values);
 
 			// Write the cluster id and the cluster sum to the context
 			context.write(key, clusterSum);
@@ -76,16 +86,16 @@ public class KMeansMapReduce {
 		protected void reduce(IntWritable key, Iterable<PointWritable> values, Context context)
 				throws IOException, InterruptedException {
 			// Calculate the sum of points and the count
-			ClusterSumWritable clusterSum = calculateClusterSum(values);
+			ClusterSumWritable clusterSum = KMeansUtils.calculateClusterSum(values);
 
 			// Calculate the new centroid
-			PointWritable newCentroid = calculateNewCentroid(clusterSum);
+			PointWritable newCentroid = calculateNewCentroid(clusterSum, key);
 
 			// Write the cluster id and the new centroid to the context
 			context.write(key, newCentroid);
 		}
 
-		private PointWritable calculateNewCentroid(ClusterSumWritable clusterSum) {
+		private PointWritable calculateNewCentroid(ClusterSumWritable clusterSum, IntWritable id) {
 			double[] sum = clusterSum.getSumCoordinates();
 			int count = clusterSum.getCount();
 			double[] centroid = new double[sum.length];
@@ -94,7 +104,7 @@ public class KMeansMapReduce {
 				centroid[i] = sum[i] / count;
 			}
 
-			return new PointWritable(centroid);
+			return new PointWritable(centroid, id);
 		}
 
 	}
@@ -119,5 +129,4 @@ public class KMeansMapReduce {
 
 		System.exit(job.waitForCompletion(true) ? 0 : 1);
 	}
-
 }
