@@ -15,6 +15,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import it.unipi.hadoop.KMeansUtils;
+import java.util.Arrays;
 
 public class KMeansMapReduce {
 
@@ -40,6 +41,11 @@ public class KMeansMapReduce {
 			// Convert the input text to a PointWritable
 			PointWritable point = textToPoint(value, context);
 
+			// If the point is null, skip this record
+			if (point == null) {
+				return;
+			}
+
 			// Find the nearest centroid to the point
 			IntWritable nearestCentroidId = point.getNearestCentroid(centroids).getID();
 
@@ -54,19 +60,24 @@ public class KMeansMapReduce {
 
 			String[] tokens = line.trim().split(",");
 
-			if (tokens.length != d) {
-				double[] val = new double[d];
-				for (int i = 1; i <= d; i++) {
-					double att = Double.parseDouble(tokens[i]);
-					val[i] = att;
-				}
-				reducerKey.set(Integer.parseInt(tokens[0]));
-				// reducerKey.set(tokens[0]);
-				reducerValue.set(reducerValue, val);
-				context.write(reducerKey, reducerValue);
+			System.out.println(Arrays.toString(tokens));
+
+			if (tokens.length != d + 1) {
+				throw new IllegalArgumentException(
+						"Each line must have d + 1 tokens, where the first token is the ID and the remaining d tokens are the coordinates.");
 			}
 
-			return null;
+			// Parse the ID
+			int id = Integer.parseInt(tokens[0]);
+
+			// Parse the coordinates
+			double[] coordinates = new double[d];
+			for (int i = 0; i < d; i++) {
+				coordinates[i] = Double.parseDouble(tokens[i + 1]);
+			}
+
+			// Create and return the point
+			return new PointWritable(coordinates, new IntWritable(id));
 		}
 
 	}
