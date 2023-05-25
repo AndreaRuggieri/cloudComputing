@@ -1,4 +1,4 @@
-package tmp;
+package it.unipi.hadoop;
 
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;

@@ -1,4 +1,4 @@
-package tmp;
+package it.unipi.hadoop;
 
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -14,17 +14,20 @@ import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
-import tmp.KMeansUtils;
+import it.unipi.hadoop.KMeansUtils;
 
 public class KMeansMapReduce {
 
 	static int k;
 	static int d;
 
-	public class KMeansMapper extends Mapper<LongWritable, Text, IntWritable, PointWritable> {
+	public static class KMeansMapper extends Mapper<LongWritable, Text, IntWritable, PointWritable> {
 		private PointWritable[] centroids;
 		private final IntWritable reducerKey = new IntWritable();
 		private final PointWritable reducerValue = new PointWritable();
+
+		public KMeansMapper() {
+		}
 
 		@Override
 		protected void setup(Context context) throws IOException, InterruptedException {
@@ -68,7 +71,10 @@ public class KMeansMapReduce {
 
 	}
 
-	public class KMeansCombiner extends Reducer<IntWritable, PointWritable, IntWritable, ClusterSumWritable> {
+	public static class KMeansCombiner extends Reducer<IntWritable, PointWritable, IntWritable, ClusterSumWritable> {
+		public KMeansCombiner() {
+		}
+
 		@Override
 		protected void reduce(IntWritable key, Iterable<PointWritable> values, Context context)
 				throws IOException, InterruptedException {
@@ -81,7 +87,11 @@ public class KMeansMapReduce {
 
 	}
 
-	public class KMeansReducer extends Reducer<IntWritable, PointWritable, IntWritable, PointWritable> {
+	public static class KMeansReducer extends Reducer<IntWritable, PointWritable, IntWritable, PointWritable> {
+
+		public KMeansReducer() {
+		}
+
 		@Override
 		protected void reduce(IntWritable key, Iterable<PointWritable> values, Context context)
 				throws IOException, InterruptedException {
