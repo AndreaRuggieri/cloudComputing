@@ -19,19 +19,24 @@ import java.util.Arrays;
 
 public class KMeansMapReduce {
 
-	static int k;
-	static int d;
-
 	public static class KMeansMapper extends Mapper<LongWritable, Text, IntWritable, PointWritable> {
 		private PointWritable[] centroids;
 		private final IntWritable reducerKey = new IntWritable();
 		private final PointWritable reducerValue = new PointWritable();
+
+		private int k, d;
 
 		public KMeansMapper() {
 		}
 
 		@Override
 		protected void setup(Context context) throws IOException, InterruptedException {
+			Configuration conf = context.getConfiguration();
+
+			// Retrieve k and d from the configuration
+			this.k = conf.getInt("k", -1);
+			this.d = conf.getInt("d", -1);
+
 			// Genera centroidi naive method
 			centroids = PointWritable.generateCentroids(k, d);
 		}
@@ -45,6 +50,8 @@ public class KMeansMapReduce {
 			if (point == null) {
 				return;
 			}
+
+			System.out.println("ID: " + point.getID() + " - COO: " + Arrays.toString(point.getCoordinates()));
 
 			// Find the nearest centroid to the point
 			IntWritable nearestCentroidId = point.getNearestCentroid(centroids).getID();
@@ -60,12 +67,15 @@ public class KMeansMapReduce {
 
 			String[] tokens = line.trim().split(",");
 
-			System.out.println(Arrays.toString(tokens));
+			// System.out.println("DEBUG: " + Arrays.toString(tokens) + "Lunghezza: " +
+			// tokens.length);
+			System.out.println("DEBUG: d -> " + d);
 
-			if (tokens.length != d + 1) {
-				throw new IllegalArgumentException(
-						"Each line must have d + 1 tokens, where the first token is the ID and the remaining d tokens are the coordinates.");
-			}
+			// if (tokens.length != d + 1) {
+			// throw new IllegalArgumentException(
+			// "Each line must have d + 1 tokens, where the first token is the ID and the
+			// remaining d tokens are the coordinates.");
+			// }
 
 			// Parse the ID
 			int id = Integer.parseInt(tokens[0]);
@@ -74,7 +84,10 @@ public class KMeansMapReduce {
 			double[] coordinates = new double[d];
 			for (int i = 0; i < d; i++) {
 				coordinates[i] = Double.parseDouble(tokens[i + 1]);
+				System.out.println("Ciclo: " + i + " token: " + tokens[i + 1]);
 			}
+
+			System.out.println("COORDINATE: " + Arrays.toString(coordinates) + " Lunghezza: " + coordinates.length);
 
 			// Create and return the point
 			return new PointWritable(coordinates, new IntWritable(id));
@@ -133,7 +146,18 @@ public class KMeansMapReduce {
 	public static void main(final String[] args) throws Exception {
 		final Configuration conf = new Configuration();
 		final Job job = new Job(conf, "kmeans");
+
 		String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
+
+		int k = Integer.parseInt(otherArgs[1]);
+		int d = Integer.parseInt(otherArgs[2]);
+
+		// Add k and d to the Configuration
+		job.getConfiguration().setInt("k", k);
+		job.getConfiguration().setInt("d", d);
+
+		System.out.println("MAIN: d -> " + d);
+
 		job.setJarByClass(KMeansMapReduce.class);
 
 		job.setOutputKeyClass(Text.class);
@@ -141,9 +165,6 @@ public class KMeansMapReduce {
 
 		job.setMapperClass(KMeansMapper.class);
 		job.setReducerClass(KMeansReducer.class);
-
-		k = Integer.parseInt(otherArgs[1]);
-		d = Integer.parseInt(otherArgs[2]);
 
 		FileInputFormat.addInputPath(job, new Path(args[0]));
 		FileOutputFormat.setOutputPath(job, new Path(args[3]));
