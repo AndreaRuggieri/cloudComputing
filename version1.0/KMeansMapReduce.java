@@ -160,8 +160,11 @@ public class KMeansMapReduce {
 
 		job.setJarByClass(KMeansMapReduce.class);
 
-		job.setOutputKeyClass(Text.class);
-		job.setOutputValueClass(IntWritable.class);
+		job.setMapOutputKeyClass(IntWritable.class);
+		job.setMapOutputValueClass(PointWritable.class);
+
+		job.setOutputKeyClass(IntWritable.class);
+		job.setOutputValueClass(PointWritable.class);
 
 		job.setMapperClass(KMeansMapper.class);
 		job.setReducerClass(KMeansReducer.class);

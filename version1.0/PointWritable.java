@@ -90,4 +90,16 @@ public class PointWritable implements Writable {
         return nearestCentroid;
     }
 
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(id + " [");
+        for (double coord : coordinates) {
+            sb.append(coord);
+            sb.append(", ");
+        }
+        sb.append("]");
+        return sb.toString().trim();
+    }
+
 }
