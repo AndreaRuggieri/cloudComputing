@@ -98,6 +98,7 @@ public class PointWritable implements Writable {
             sb.append(coord);
             sb.append(", ");
         }
+        sb.delete(sb.length() - 2, sb.length());
         sb.append("]");
         return sb.toString().trim();
     }

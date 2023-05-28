@@ -39,6 +39,11 @@ public class KMeansMapReduce {
 
 			// Genera centroidi naive method
 			centroids = PointWritable.generateCentroids(k, d);
+
+			// Salviamo i centroidi appena generati
+			// for (PointWritable centroid : centroids) {
+			// this.saveCentroid(centroid, "kmeans/oldCentroids.txt");
+			// }
 		}
 
 		@Override
@@ -127,6 +132,8 @@ public class KMeansMapReduce {
 
 			// Write the cluster id and the new centroid to the context
 			context.write(key, newCentroid);
+
+			// this.saveCentroid(newCentroid, "kmeans/newCentroids.txt");
 		}
 
 		private PointWritable calculateNewCentroid(ClusterSumWritable clusterSum, IntWritable id) {
@@ -143,20 +150,68 @@ public class KMeansMapReduce {
 
 	}
 
+	// public PointWritable[] loadCentroids(String filename) throws IOException {
+	// List<PointWritable> centroids = new ArrayList<>();
+	// BufferedReader reader = new BufferedReader(new FileReader(filename));
+
+	// String line;
+	// while ((line = reader.readLine()) != null) {
+	// String[] parts = line.split("\\s+");
+	// IntWritable id = new IntWritable(Integer.parseInt(parts[0]));
+	// String[] coordStrings = parts[1].substring(1, parts[1].length() - 1).split(",
+	// ");
+	// double[] coordinates =
+	// Arrays.stream(coordStrings).mapToDouble(Double::parseDouble).toArray();
+	// centroids.add(new PointWritable(coordinates, id));
+	// }
+
+	// reader.close();
+	// return centroids.toArray(new PointWritable[0]);
+	// }
+
+	// public void saveCentroid(PointWritable[] centroids, String filename) throws
+	// IOException {
+	// BufferedWriter writer = new BufferedWriter(new FileWriter(filename));
+
+	// // for (PointWritable centroid : centroids) {
+	// writer.write(centroid.toString());
+	// writer.newLine();
+	// // }
+
+	// writer.close();
+	// }
+
+	// public double calculateCentroidDifference(PointWritable centroid1,
+	// PointWritable centroid2) {
+	// double[] coordinates1 = centroid1.getCoordinates();
+	// double[] coordinates2 = centroid2.getCoordinates();
+
+	// if (coordinates1.length != coordinates2.length) {
+	// throw new IllegalArgumentException("Centroids must have the same
+	// dimension.");
+	// }
+
+	// double sum = 0.0;
+	// for (int i = 0; i < coordinates1.length; i++) {
+	// double diff = coordinates1[i] - coordinates2[i];
+	// sum += diff * diff;
+	// }
+
+	// return Math.sqrt(sum);
+	// }
+
 	public static void main(final String[] args) throws Exception {
 		final Configuration conf = new Configuration();
 		final Job job = new Job(conf, "kmeans");
-
 		String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
 
 		int k = Integer.parseInt(otherArgs[1]);
 		int d = Integer.parseInt(otherArgs[2]);
+		int MaxIterations = Integer.parseInt(otherArgs[3]);
 
 		// Add k and d to the Configuration
 		job.getConfiguration().setInt("k", k);
 		job.getConfiguration().setInt("d", d);
-
-		System.out.println("MAIN: d -> " + d);
 
 		job.setJarByClass(KMeansMapReduce.class);
 
@@ -170,8 +225,36 @@ public class KMeansMapReduce {
 		job.setReducerClass(KMeansReducer.class);
 
 		FileInputFormat.addInputPath(job, new Path(args[0]));
-		FileOutputFormat.setOutputPath(job, new Path(args[3]));
+		FileOutputFormat.setOutputPath(job, new Path(args[4]));
 
-		System.exit(job.waitForCompletion(true) ? 0 : 1);
+		double threshold = 0.01; // Define a threshold for the centroid difference
+		boolean converged = false;
+		boolean maxIterationReached = false;
+		int count = 0;
+
+		while (!converged && !maxIterationReached) {
+			count++;
+			// System.out.println("CICLO: n -> " + count);
+			job.waitForCompletion(true);
+
+			// Load the old and new centroids from HDFS
+			// PointWritable[] oldCentroids =
+			// loadCentroidsFromHDFS("kmeans/oldCentroids.txt");
+			// PointWritable[] newCentroids =
+			// loadCentroidsFromHDFS("kmeans/newCentroids.txt");
+			//
+			// Calculate the difference between the old and new centroids
+			// double difference = calculateCentroidDifference(oldCentroids, newCentroids);
+
+			// If the difference is less than the threshold, the algorithm has converged
+			// if (difference < threshold) {
+			// converged = true;
+			// }
+
+			if (count >= MaxIterations) {
+				maxIterationReached = true;
+			}
+		}
 	}
+
 }
