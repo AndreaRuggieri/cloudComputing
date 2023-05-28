@@ -93,7 +93,7 @@ public class PointWritable implements Writable {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append(id + " [");
+        sb.append("[");
         for (double coord : coordinates) {
             sb.append(coord);
             sb.append(", ");

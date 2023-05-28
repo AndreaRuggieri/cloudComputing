@@ -16,6 +16,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import it.unipi.hadoop.KMeansUtils;
 import java.util.Arrays;
+import java.util.List;
 
 public class KMeansMapReduce {
 
@@ -150,55 +151,96 @@ public class KMeansMapReduce {
 
 	}
 
-	// public PointWritable[] loadCentroids(String filename) throws IOException {
-	// List<PointWritable> centroids = new ArrayList<>();
-	// BufferedReader reader = new BufferedReader(new FileReader(filename));
+	public PointWritable[] loadCentroids(String mod, String filename) throws IOException {
+		List<PointWritable> centroids = new ArrayList<>();
 
-	// String line;
-	// while ((line = reader.readLine()) != null) {
-	// String[] parts = line.split("\\s+");
-	// IntWritable id = new IntWritable(Integer.parseInt(parts[0]));
-	// String[] coordStrings = parts[1].substring(1, parts[1].length() - 1).split(",
-	// ");
-	// double[] coordinates =
-	// Arrays.stream(coordStrings).mapToDouble(Double::parseDouble).toArray();
-	// centroids.add(new PointWritable(coordinates, id));
-	// }
+		String line;
 
-	// reader.close();
-	// return centroids.toArray(new PointWritable[0]);
-	// }
+		// TODO: aggiustare il modo in cui si va a fare il parsing dei centroidi dal
+		// file di testo
 
-	// public void saveCentroid(PointWritable[] centroids, String filename) throws
-	// IOException {
-	// BufferedWriter writer = new BufferedWriter(new FileWriter(filename));
+		switch (mod) {
+			case "f":
+				BufferedReader reader = new BufferedReader(new FileReader(filename));
 
-	// // for (PointWritable centroid : centroids) {
-	// writer.write(centroid.toString());
-	// writer.newLine();
-	// // }
+				while ((line = reader.readLine()) != null) {
+					String[] parts = line.split("\\s+");
+					IntWritable id = new IntWritable(Integer.parseInt(parts[0]));
+					String[] coordStrings = parts[1].substring(1, parts[1].length() - 1).split(",");
+					double[] coordinates = Arrays.stream(coordStrings).mapToDouble(Double::parseDouble).toArray();
+					centroids.add(new PointWritable(coordinates, id));
+				}
+				break;
 
-	// writer.close();
-	// }
+			case "d":
+				File dir = new File(filename);
 
-	// public double calculateCentroidDifference(PointWritable centroid1,
-	// PointWritable centroid2) {
-	// double[] coordinates1 = centroid1.getCoordinates();
-	// double[] coordinates2 = centroid2.getCoordinates();
+				// Check if the directory exists and it is indeed a directory
+				if (dir.exists() && dir.isDirectory()) {
+					// List all files matching the pattern "part*"
+					File[] files = dir.listFiles(new FilenameFilter() {
+						@Override
+						public boolean accept(File dir, String name) {
+							return name.startsWith("part");
+						}
+					});
 
-	// if (coordinates1.length != coordinates2.length) {
-	// throw new IllegalArgumentException("Centroids must have the same
-	// dimension.");
-	// }
+					// Print the names of the matching files
+					for (File file : files) {
+						System.out.println(file.getName());
+						while ((line = reader.readLine()) != null) {
+							String[] parts = line.split("\\s+");
+							IntWritable id = new IntWritable(Integer.parseInt(parts[0]));
+							String[] coordStrings = parts[1].substring(1, parts[1].length() - 1).split(",");
+							double[] coordinates = Arrays.stream(coordStrings).mapToDouble(Double::parseDouble)
+									.toArray();
+							centroids.add(new PointWritable(coordinates, id));
+						}
+					}
+				} else {
+					System.out.println("The specified path either does not exist or is not a directory.");
+				}
+				break;
 
-	// double sum = 0.0;
-	// for (int i = 0; i < coordinates1.length; i++) {
-	// double diff = coordinates1[i] - coordinates2[i];
-	// sum += diff * diff;
-	// }
+			default:
+				break;
+		}
 
-	// return Math.sqrt(sum);
-	// }
+		BufferedReader reader = new BufferedReader(new FileReader(filename));
+
+		reader.close();
+		return centroids.toArray(new PointWritable[0]);
+	}
+
+	public void saveCentroids(PointWritable[] centroids, String filename) throws IOException {
+		BufferedWriter writer = new BufferedWriter(new FileWriter(filename));
+		// TODO: verificare che stampi consistentemente a come si vanno a leggere gli
+		// oldCentroids
+		for (PointWritable centroid : centroids) {
+			writer.write(centroid.toString());
+			writer.newLine();
+		}
+
+		writer.close();
+	}
+
+	public double calculateCentroidDifference(PointWritable centroid1,
+			PointWritable centroid2) {
+		double[] coordinates1 = centroid1.getCoordinates();
+		double[] coordinates2 = centroid2.getCoordinates();
+
+		if (coordinates1.length != coordinates2.length) {
+			throw new IllegalArgumentException("Centroids must have the same dimension.");
+		}
+
+		double sum = 0.0;
+		for (int i = 0; i < coordinates1.length; i++) {
+			double diff = coordinates1[i] - coordinates2[i];
+			sum += diff * diff;
+		}
+
+		return Math.sqrt(sum);
+	}
 
 	public static void main(final String[] args) throws Exception {
 		final Configuration conf = new Configuration();
@@ -212,6 +254,9 @@ public class KMeansMapReduce {
 		// Add k and d to the Configuration
 		job.getConfiguration().setInt("k", k);
 		job.getConfiguration().setInt("d", d);
+
+		// Set one reducer per cluster
+		job.setNumReduceTasks(k);
 
 		job.setJarByClass(KMeansMapReduce.class);
 
@@ -237,11 +282,11 @@ public class KMeansMapReduce {
 			// System.out.println("CICLO: n -> " + count);
 			job.waitForCompletion(true);
 
+			// TODO: sistemare verifica di convergenza con soglia
+
 			// Load the old and new centroids from HDFS
-			// PointWritable[] oldCentroids =
-			// loadCentroidsFromHDFS("kmeans/oldCentroids.txt");
-			// PointWritable[] newCentroids =
-			// loadCentroidsFromHDFS("kmeans/newCentroids.txt");
+			PointWritable[] oldCentroids = loadCentroidsFromHDFS("f", "kmeans/oldCentroids.txt");
+			PointWritable[] newCentroids = loadCentroidsFromHDFS("d", args[4]); // outputTestxx/part*
 			//
 			// Calculate the difference between the old and new centroids
 			// double difference = calculateCentroidDifference(oldCentroids, newCentroids);
