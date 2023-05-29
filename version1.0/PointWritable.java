@@ -22,7 +22,7 @@ public class PointWritable implements Writable {
             PointWritable pw = new PointWritable(new double[d], new IntWritable(i)); // assign id during generation
             for (int j = 0; j < d; j++) {
                 Random random = new Random();
-                pw.set(pw, j, random.nextDouble() * 100);
+                pw.set(pw, j, random.nextDouble() * 1000);
             }
             centroidi[i] = pw; // assign the generated PointWritable to the array
         }

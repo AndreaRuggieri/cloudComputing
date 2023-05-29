@@ -22,8 +22,18 @@ public class ClusterSumWritable implements Writable {
         return sumCoordinates;
     }
 
+    public void setSumCoordinates(double[] d) {
+        for (int i = 0; i < sumCoordinates.length; i++) {
+            this.sumCoordinates[i] = d[i];
+        }
+    }
+
     public int getCount() {
         return count;
+    }
+
+    public void setCount(int n) {
+        this.count = n;
     }
 
     @Override
