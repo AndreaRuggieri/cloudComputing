@@ -1,22 +1,21 @@
 package it.unipi.hadoop;
 
-import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.Text;
+import java.io.*;
+import java.util.*;
+import org.apache.hadoop.io.*;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
-import org.apache.hadoop.io.IntWritable;
-import java.io.DataOutput;
-import java.io.IOException;
-import java.io.DataInput;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.util.GenericOptionsParser;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import it.unipi.hadoop.KMeansUtils;
-import java.util.Arrays;
-import java.util.List;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileStatus;
 
 public class KMeansMapReduce {
 
@@ -42,9 +41,8 @@ public class KMeansMapReduce {
 			centroids = PointWritable.generateCentroids(k, d);
 
 			// Salviamo i centroidi appena generati
-			// for (PointWritable centroid : centroids) {
-			// this.saveCentroid(centroid, "kmeans/oldCentroids.txt");
-			// }
+			saveCentroids(centroids, "kmeans/oldCentroids.txt");
+
 		}
 
 		@Override
@@ -151,81 +149,86 @@ public class KMeansMapReduce {
 
 	}
 
-	public PointWritable[] loadCentroids(String mod, String filename) throws IOException {
+	public static PointWritable[] loadCentroids(String mod, String filename) throws IOException {
 		List<PointWritable> centroids = new ArrayList<>();
-
 		String line;
 
-		// TODO: aggiustare il modo in cui si va a fare il parsing dei centroidi dal
-		// file di testo
+		Configuration conf = new Configuration();
+		FileSystem fs = FileSystem.get(conf);
 
 		switch (mod) {
 			case "f":
-				BufferedReader reader = new BufferedReader(new FileReader(filename));
-
-				while ((line = reader.readLine()) != null) {
-					String[] parts = line.split("\\s+");
-					IntWritable id = new IntWritable(Integer.parseInt(parts[0]));
-					String[] coordStrings = parts[1].substring(1, parts[1].length() - 1).split(",");
-					double[] coordinates = Arrays.stream(coordStrings).mapToDouble(Double::parseDouble).toArray();
-					centroids.add(new PointWritable(coordinates, id));
+				Path filePath = new Path(filename);
+				if (!fs.exists(filePath)) {
+					throw new IOException("File does not exist: " + filename);
 				}
+				try (FSDataInputStream in = fs.open(filePath);
+						BufferedReader reader = new BufferedReader(new InputStreamReader(in))) {
+					while ((line = reader.readLine()) != null) {
+						String[] parts = line.split("\\[");
+						IntWritable id = new IntWritable(Integer.parseInt(parts[0].trim()));
+						String[] coordStrings = parts[1].substring(0, parts[1].length() - 1).split(",\\s");
+						double[] coordinates = Arrays.stream(coordStrings).mapToDouble(Double::parseDouble).toArray();
+						centroids.add(new PointWritable(coordinates, id));
+					}
+				}
+				System.out.println("CENTROIDS LENGHT: " + centroids.size());
 				break;
 
 			case "d":
-				File dir = new File(filename);
-
-				// Check if the directory exists and it is indeed a directory
-				if (dir.exists() && dir.isDirectory()) {
-					// List all files matching the pattern "part*"
-					File[] files = dir.listFiles(new FilenameFilter() {
-						@Override
-						public boolean accept(File dir, String name) {
-							return name.startsWith("part");
-						}
-					});
-
-					// Print the names of the matching files
-					for (File file : files) {
-						System.out.println(file.getName());
+				Path dirPath = new Path(filename);
+				if (!fs.exists(dirPath) || !fs.isDirectory(dirPath)) {
+					throw new IOException("Directory does not exist: " + filename);
+				}
+				FileStatus[] fileStatuses = fs.listStatus(dirPath, path -> path.getName().startsWith("part"));
+				for (FileStatus fileStatus : fileStatuses) {
+					try (FSDataInputStream in = fs.open(fileStatus.getPath());
+							BufferedReader reader = new BufferedReader(new InputStreamReader(in))) {
 						while ((line = reader.readLine()) != null) {
-							String[] parts = line.split("\\s+");
-							IntWritable id = new IntWritable(Integer.parseInt(parts[0]));
-							String[] coordStrings = parts[1].substring(1, parts[1].length() - 1).split(",");
+							String[] parts = line.split("\\[");
+							IntWritable id = new IntWritable(Integer.parseInt(parts[0].trim()));
+							String[] coordStrings = parts[1].substring(0, parts[1].length() - 1).split(",\\s");
 							double[] coordinates = Arrays.stream(coordStrings).mapToDouble(Double::parseDouble)
 									.toArray();
 							centroids.add(new PointWritable(coordinates, id));
 						}
 					}
-				} else {
-					System.out.println("The specified path either does not exist or is not a directory.");
 				}
+				System.out.println("CENTROIDS LENGHT: " + centroids.size());
 				break;
 
 			default:
 				break;
 		}
 
-		BufferedReader reader = new BufferedReader(new FileReader(filename));
+		// Sort centroids by id
+		centroids.sort(Comparator.comparingInt(PointWritable::get_int_ID));
 
-		reader.close();
 		return centroids.toArray(new PointWritable[0]);
 	}
 
-	public void saveCentroids(PointWritable[] centroids, String filename) throws IOException {
-		BufferedWriter writer = new BufferedWriter(new FileWriter(filename));
-		// TODO: verificare che stampi consistentemente a come si vanno a leggere gli
-		// oldCentroids
-		for (PointWritable centroid : centroids) {
-			writer.write(centroid.toString());
-			writer.newLine();
+	public static void saveCentroids(PointWritable[] centroids, String filename) throws IOException {
+		Configuration conf = new Configuration();
+		FileSystem fs = FileSystem.get(conf);
+		Path outputPath = new Path(filename);
+
+		if (fs.exists(outputPath)) {
+			// If file exists, remove it to start fresh
+			fs.delete(outputPath, true);
 		}
 
-		writer.close();
+		FSDataOutputStream out = fs.create(outputPath);
+
+		for (PointWritable centroid : centroids) {
+			out.writeBytes(centroid.get_int_ID() + " " + centroid.toString());
+			out.writeBytes("\n");
+		}
+
+		out.close();
+
 	}
 
-	public double calculateCentroidDifference(PointWritable centroid1,
-			PointWritable centroid2) {
+	public static double calculateCentroidDifference(PointWritable centroid1, PointWritable centroid2) {
 		double[] coordinates1 = centroid1.getCoordinates();
 		double[] coordinates2 = centroid2.getCoordinates();
 
@@ -272,33 +275,57 @@ public class KMeansMapReduce {
 		FileInputFormat.addInputPath(job, new Path(args[0]));
 		FileOutputFormat.setOutputPath(job, new Path(args[4]));
 
-		double threshold = 0.01; // Define a threshold for the centroid difference
+		double threshold = 0.00001; // Define a threshold for the centroid difference
 		boolean converged = false;
 		boolean maxIterationReached = false;
 		int count = 0;
 
+		System.out.println("THRESHOLD: " + threshold);
+
 		while (!converged && !maxIterationReached) {
 			count++;
-			// System.out.println("CICLO: n -> " + count);
+			System.out.println("CICLO: n -> " + count);
 			job.waitForCompletion(true);
 
-			// TODO: sistemare verifica di convergenza con soglia
-
 			// Load the old and new centroids from HDFS
-			PointWritable[] oldCentroids = loadCentroidsFromHDFS("f", "kmeans/oldCentroids.txt");
-			PointWritable[] newCentroids = loadCentroidsFromHDFS("d", args[4]); // outputTestxx/part*
+			PointWritable[] oldCentroids = loadCentroids("f", "kmeans/oldCentroids.txt");
+			PointWritable[] newCentroids = loadCentroids("d", args[4]); // outputTestxx/part*
 			//
 			// Calculate the difference between the old and new centroids
-			// double difference = calculateCentroidDifference(oldCentroids, newCentroids);
+			double difference = 0.0;
+			for (int i = 0; i < k; i++) {
+				double temp = calculateCentroidDifference(oldCentroids[i], newCentroids[i]);
+				if (temp > difference) {
+					difference = temp;
+				}
+			}
+
+			System.out.println("DIFFERENZA: " + difference);
 
 			// If the difference is less than the threshold, the algorithm has converged
-			// if (difference < threshold) {
-			// converged = true;
-			// }
+			if (difference < threshold) {
+				converged = true;
+				System.out.println("END: threshold.");
+			}
 
+			// if the number of max iterations is reached, the algorithm stops
 			if (count >= MaxIterations) {
 				maxIterationReached = true;
+				System.out.println("END: max iterations reached.");
 			}
+
+			// DEBUG
+			System.out.println("CENTROIDI VECCHI:");
+			for (int i = 0; i < k; i++) {
+				System.out.println(i + " " + oldCentroids[i].toString());
+			}
+			System.out.println("\nCENTROIDI NUOVI:");
+			for (int i = 0; i < k; i++) {
+				System.out.println(i + " " + newCentroids[i].toString());
+			}
+			System.out.println("\n");
+
+			saveCentroids(newCentroids, "kmeans/oldCentroids.txt");
 		}
 	}
 

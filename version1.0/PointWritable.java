@@ -42,6 +42,10 @@ public class PointWritable implements Writable {
         return this.id;
     }
 
+    public int get_int_ID() { // getter for id
+        return this.id.get();
+    }
+
     public double[] getCoordinates() {
         return coordinates;
     }
