@@ -103,11 +103,26 @@ public class KMeansMapReduce {
 		public KMeansCombiner() {
 		}
 
+		public static PointWritable calculateClusterSum(PointWritable p) {
+
+			double[] sum = null;
+			for (PointWritable point : values) {
+				if (sum == null) {
+					sum = new double[point.getCoordinates().length];
+				}
+				for (int i = 0; i < sum.length; i++) {
+					sum[i] += point.getCoordinates()[i];
+					numero_punti_cluster++;
+				}
+				p.set(sum, numero_punti_cluster);
+			}
+		}
+
 		@Override
 		protected void reduce(IntWritable key, Iterable<PointWritable> values, Context context)
 				throws IOException, InterruptedException {
 			// Calculate the sum of points and the count
-			ClusterSumWritable clusterSum = KMeansUtils.calculateClusterSum(values);
+			// ClusterSumWritable clusterSum = KMeansUtils.calculateClusterSum(values);
 
 			// Write the cluster id and the cluster sum to the context
 			context.write(key, clusterSum);
@@ -121,7 +136,7 @@ public class KMeansMapReduce {
 		}
 
 		@Override
-		protected void reduce(IntWritable key, Iterable<ClusterSumWritable> partialClusterSum, Context context)
+		protected void reduce(IntWritable key, Iterable<PointWritable> partialClusterSum, Context context)
 				throws IOException, InterruptedException {
 			ClusterSumWritable clusterSum;
 			double[] coordinates = null;
@@ -137,7 +152,7 @@ public class KMeansMapReduce {
 				count += temp.getCount();
 			}
 
-			clusterSum = new ClusterSumWritable(coordinates, count);
+			clusterSum = new PointWritable(coordinates, count);
 
 			// Calculate the new centroid
 			PointWritable newCentroid = calculateNewCentroid(clusterSum, key);
