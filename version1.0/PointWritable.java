@@ -27,9 +27,17 @@ public class PointWritable implements Writable {
         this.coordinates = new double[1];
         this.coordinates[0] = -0;
         this.id = new IntWritable(-1);
-        this.numero_punti_cluster = 0; // all'inizio non ci sono punti nel cluster
-        // this(new double[0], new IntWritable(-1)); // default id is -1, indicatingno
-        // id assigned
+        this.numero_punti_cluster = -127; // all'inizio non ci sono punti nel cluster
+    }
+
+    // copy constructor
+    public PointWritable(PointWritable point) {
+        this.coordinates = new double[point.getCoordinates().length];
+        for (int i = 0; i < coordinates.length; i++) {
+            this.coordinates[i] = point.getCoordinates()[i];
+        }
+        this.id = new IntWritable(point.get_int_ID());
+        this.numero_punti_cluster = point.getNumeroPuntiCluster();
     }
 
     public PointWritable(int d) { // constructor for a 0-initialized point of dimension d
@@ -114,6 +122,9 @@ public class PointWritable implements Writable {
         for (double coordinate : coordinates) {
             out.writeDouble(coordinate);
         }
+        // Write id and numero_punti_cluster
+        id.write(out);
+        out.writeInt(numero_punti_cluster);
     }
 
     @Override
@@ -123,10 +134,14 @@ public class PointWritable implements Writable {
         for (int i = 0; i < length; i++) {
             coordinates[i] = in.readDouble();
         }
+        // Read id and numero_punti_cluster
+        id = new IntWritable();
+        id.readFields(in);
+        numero_punti_cluster = in.readInt();
     }
 
-    public PointWritable getNearestCentroid(PointWritable[] centroids) {
-        PointWritable nearestCentroid = null;
+    public IntWritable getNearestCentroid(PointWritable[] centroids) {
+        IntWritable nearestCentroid = new IntWritable(0);
         double nearestDistance = Double.MAX_VALUE;
 
         for (PointWritable centroid : centroids) {
@@ -140,7 +155,7 @@ public class PointWritable implements Writable {
 
             if (distance < nearestDistance) {
                 nearestDistance = distance;
-                nearestCentroid = centroid;
+                nearestCentroid = centroid.getID();
             }
         }
 
