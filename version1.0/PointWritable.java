@@ -17,24 +17,23 @@ public class PointWritable implements Writable {
     private int numero_punti_cluster;
     // sum_features non mi serve, come array uso coordinates
 
-    // public PointWritable() {
-    // // Il costruttore vuoto:
-    // // - inizializza l'id a 0
-    // // - crea un array di dimensione uno, tanto è possibile cambiarlo con la
-    // // relativa set
-    // // - inizializza il numero di punti presenti nel relativo cluster a 0
-    // // - inizializza la somma (parziale) delle features presenti nel cluster a 0
-    // this.coordinates = new double[1];
-    // this.coordinates[0] = -0;
-    // this.id = new IntWritable(-1);
-    // this.numero_punti_cluster = 0; // all'inizio non ci sono punti nel cluster
-    // // this(new double[0], new IntWritable(-1)); // default id is -1, indicating
-    // no
-    // // id assigned
-    // }
+    public PointWritable() {
+        // Il costruttore vuoto:
+        // - inizializza l'id a 0
+        // - crea un array di dimensione uno, tanto è possibile cambiarlo con la
+        // relativa set
+        // - inizializza il numero di punti presenti nel relativo cluster a 0
+        // - inizializza la somma (parziale) delle features presenti nel cluster a 0
+        this.coordinates = new double[1];
+        this.coordinates[0] = -0;
+        this.id = new IntWritable(-1);
+        this.numero_punti_cluster = 0; // all'inizio non ci sono punti nel cluster
+        // this(new double[0], new IntWritable(-1)); // default id is -1, indicatingno
+        // id assigned
+    }
 
     public PointWritable(int d) { // constructor for a 0-initialized point of dimension d
-        this.id = 0;
+        this.id = new IntWritable(0);
         this.coordinates = new double[d];
         for (int i = 0; i < d; i++) {
             this.coordinates[i] = 0;
@@ -67,7 +66,7 @@ public class PointWritable implements Writable {
                 // Estraggo il numero random, i-esima feature (coordinata) del mio centroide
                 Random random = new Random();
                 // Setto la feature nell'i-esima posizione del punto in questione
-                pw.set(pw, j, random.nextDouble() * 1000);
+                pw.set(j, random.nextDouble() * 1000);
             }
             centroidi[i] = pw; // assign the generated PointWritable to the array
         }
@@ -161,9 +160,13 @@ public class PointWritable implements Writable {
         return sb.toString().trim();
     }
 
-    public PointWritable sumPoint(PointWritable point) {
+    public void sumPoint(PointWritable point) {
         for (int i = 0; i < this.coordinates.length; i++) {
             this.coordinates[i] += point.getCoordinates()[i];
+        }
+        if (point.getNumeroPuntiCluster() > 0) {
+            this.numero_punti_cluster += point.getNumeroPuntiCluster();
+        } else {
             this.numero_punti_cluster++;
         }
     }

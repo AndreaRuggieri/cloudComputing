@@ -10,7 +10,6 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
-import it.unipi.hadoop.KMeansUtils;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -26,9 +25,6 @@ public class KMeansMapReduce {
 
 		private int k, d;
 
-		public KMeansMapper() {
-		}
-
 		@Override
 		protected void setup(Context context) throws IOException, InterruptedException {
 			Configuration conf = context.getConfiguration();
@@ -38,7 +34,9 @@ public class KMeansMapReduce {
 			this.d = conf.getInt("d", -1);
 
 			// Genera centroidi naive method
-			centroids = PointWritable.generateCentroids(k, d);
+			// centroids = PointWritable.generateCentroids(k, d);
+
+			centroids = getRandomCentroids("input.txt", k);
 
 			// Salviamo i centroidi appena generati
 			saveCentroids(centroids, "kmeans/oldCentroids.txt");
@@ -56,7 +54,8 @@ public class KMeansMapReduce {
 			}
 
 			// debug
-			System.out.println("ID: " + point.getID() + " - COO: " + Arrays.toString(point.getCoordinates()));
+			// System.out.println("ID: " + point.getID() + " - COO: " +
+			// Arrays.toString(point.getCoordinates()));
 
 			// Find the nearest centroid to the point
 			IntWritable nearestCentroidId = point.getNearestCentroid(centroids).getID();
@@ -74,7 +73,10 @@ public class KMeansMapReduce {
 
 			// System.out.println("DEBUG: " + Arrays.toString(tokens) + "Lunghezza: " +
 			// tokens.length);
-			System.out.println("DEBUG: d -> " + d);
+			// System.out.println("DEBUG: d -> " + d);
+			// debugToFile(line);
+
+			// debug
 
 			// if (tokens.length != d + 1) {
 			// throw new IllegalArgumentException(
@@ -98,12 +100,42 @@ public class KMeansMapReduce {
 			return new PointWritable(coordinates, new IntWritable(id));
 		}
 
+		public static PointWritable[] getRandomCentroids(String filename, int k) throws IOException {
+			List<PointWritable> centroids = new ArrayList<>();
+			String line;
+
+			Configuration conf = new Configuration();
+			FileSystem fs = FileSystem.get(conf);
+
+			Path filePath = new Path(filename);
+			if (!fs.exists(filePath)) {
+				throw new IOException("File does not exist: " + filename);
+			}
+			try (FSDataInputStream in = fs.open(filePath);
+					BufferedReader reader = new BufferedReader(new InputStreamReader(in))) {
+				int i = 0;
+				while (i < k && (line = reader.readLine()) != null) {
+					i++;
+					String[] parts = line.split(",");
+					IntWritable id = new IntWritable(i);
+					double[] coordinates = new double[parts.length - 1];
+					for (int j = 1; j < parts.length; j++) {
+						coordinates[j - 1] = Double.parseDouble(parts[j]);
+					}
+					centroids.add(new PointWritable(coordinates, id));
+				}
+			}
+			System.out.println("CENTROIDS LENGHT: " + centroids.size());
+
+			// Sort centroids by id
+			centroids.sort(Comparator.comparingInt(PointWritable::get_int_ID));
+
+			return centroids.toArray(new PointWritable[0]);
+		}
 	}
 
 	public static class KMeansCombiner
-			extends Reducer<IntWritable, Iterable<PointWritable>, IntWritable, PointWritable> {
-		public KMeansCombiner() {
-		}
+			extends Reducer<IntWritable, PointWritable, IntWritable, PointWritable> {
 
 		private int k, d;
 
@@ -111,6 +143,7 @@ public class KMeansMapReduce {
 		protected void reduce(IntWritable key, Iterable<PointWritable> values, Context context)
 				throws IOException, InterruptedException {
 
+			Configuration conf = context.getConfiguration();
 			// Retrieve k and d from the configuration
 			this.k = conf.getInt("k", -1);
 			this.d = conf.getInt("d", -1);
@@ -128,29 +161,26 @@ public class KMeansMapReduce {
 
 	}
 
-	public static class KMeansReducer extends Reducer<IntWritable, ClusterSumWritable, IntWritable, PointWritable> {
+	public static class KMeansReducer
+			extends Reducer<IntWritable, PointWritable, IntWritable, PointWritable> {
 
-		public KMeansReducer() {
-		}
+		private int k, d;
 
 		@Override
-		protected void reduce(IntWritable key, Iterable<PointWritable> partialClusterSum, Context context)
+		protected void reduce(IntWritable key, Iterable<PointWritable> partialSums, Context context)
 				throws IOException, InterruptedException {
-			ClusterSumWritable clusterSum;
-			double[] coordinates = null;
-			int count = 0;
 
-			for (ClusterSumWritable temp : partialClusterSum) {
-				if (coordinates == null) {
-					coordinates = new double[temp.getSumCoordinates().length];
-				}
-				for (int i = 0; i < temp.getSumCoordinates().length; i++) {
-					coordinates[i] += temp.getSumCoordinates()[i];
-				}
-				count += temp.getCount();
+			Configuration conf = context.getConfiguration();
+			// Retrieve k and d from the configuration
+			this.k = conf.getInt("k", -1);
+			this.d = conf.getInt("d", -1);
+
+			// Initialize cluster sum value to 0
+			PointWritable clusterSum = new PointWritable(d);
+
+			for (PointWritable partialSum : partialSums) {
+				clusterSum.sumPoint(partialSum);
 			}
-
-			clusterSum = new PointWritable(coordinates, count);
 
 			// Calculate the new centroid
 			PointWritable newCentroid = calculateNewCentroid(clusterSum, key);
@@ -159,12 +189,22 @@ public class KMeansMapReduce {
 			context.write(key, newCentroid);
 		}
 
-		private PointWritable calculateNewCentroid(ClusterSumWritable clusterSum, IntWritable id) {
-			double[] sum = clusterSum.getSumCoordinates();
-			int count = clusterSum.getCount();
+		private PointWritable calculateNewCentroid(PointWritable clusterSum, IntWritable id) {
+			double[] sum = clusterSum.getCoordinates();
+			int count = clusterSum.getNumeroPuntiCluster();
 			double[] centroid = new double[sum.length];
 
+			// System.out.println("======== CALCOLO NUOVO CENTROIDE ========");
+
 			for (int i = 0; i < sum.length; i++) {
+				// System.out.println("Centroide: " + clusterSum.toString() + " Conteggio: " +
+				// count);
+				try {
+					debugToFile("Centroide: " + clusterSum.toString() + " Conteggio: " + count);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+
 				centroid[i] = sum[i] / count;
 			}
 
@@ -269,6 +309,26 @@ public class KMeansMapReduce {
 		return Math.sqrt(sum);
 	}
 
+	public static void debugToFile(String text) throws IOException {
+		Configuration conf = new Configuration();
+		FileSystem fs = FileSystem.get(conf);
+
+		Random random = new Random();
+
+		int c = (int) (random.nextDouble() * 1000);
+		Path outputPath = new Path("debug/debug" + c + ".txt");
+
+		if (fs.exists(outputPath)) {
+			// If file exists, remove it to start fresh
+			fs.delete(outputPath, true);
+		}
+		FSDataOutputStream out = fs.create(outputPath);
+		out.writeBytes(text);
+		out.writeBytes("\n");
+		out.close();
+
+	}
+
 	public static void main(final String[] args) throws Exception {
 		final Configuration conf = new Configuration();
 		final Job job = new Job(conf, "kmeans");
@@ -305,7 +365,7 @@ public class KMeansMapReduce {
 		boolean maxIterationReached = false;
 		int count = 0;
 
-		System.out.println("THRESHOLD: " + threshold);
+		// System.out.println("THRESHOLD: " + threshold);
 
 		while (!converged && !maxIterationReached) {
 			count++;
@@ -315,7 +375,7 @@ public class KMeansMapReduce {
 			// Load the old and new centroids from HDFS
 			PointWritable[] oldCentroids = loadCentroids("f", "kmeans/oldCentroids.txt");
 			PointWritable[] newCentroids = loadCentroids("d", args[4]); // outputTestxx/part*
-			//
+
 			// Calculate the difference between the old and new centroids
 			double difference = 0.0;
 			for (int i = 0; i < k; i++) {
@@ -325,13 +385,13 @@ public class KMeansMapReduce {
 				}
 			}
 
-			System.out.println("DIFFERENZA: " + difference);
+			// System.out.println("DIFFERENZA: " + difference);
 
-			// If the difference is less than the threshold, the algorithm has converged
-			if (difference < threshold) {
-				converged = true;
-				System.out.println("END: threshold.");
-			}
+			//// If the difference is less than the threshold, the algorithm has converged
+			// if (difference < threshold) {
+			// converged = true;
+			// System.out.println("END: threshold.");
+			// }
 
 			// if the number of max iterations is reached, the algorithm stops
 			if (count >= MaxIterations) {
@@ -340,15 +400,15 @@ public class KMeansMapReduce {
 			}
 
 			// DEBUG
-			System.out.println("CENTROIDI VECCHI:");
-			for (int i = 0; i < k; i++) {
-				System.out.println(i + " " + oldCentroids[i].toString());
-			}
-			System.out.println("\nCENTROIDI NUOVI:");
-			for (int i = 0; i < k; i++) {
-				System.out.println(i + " " + newCentroids[i].toString());
-			}
-			System.out.println("\n");
+			// System.out.println("CENTROIDI VECCHI:");
+			// for (int i = 0; i < k; i++) {
+			// System.out.println(i + " " + oldCentroids[i].toString());
+			// }
+			// System.out.println("\nCENTROIDI NUOVI:");
+			// for (int i = 0; i < k; i++) {
+			// System.out.println(i + " " + newCentroids[i].toString());
+			// }
+			// System.out.println("\n");
 
 			saveCentroids(newCentroids, "kmeans/oldCentroids.txt");
 		}
