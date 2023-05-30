@@ -21,8 +21,8 @@ public class KMeansMapReduce {
 
 	public static class KMeansMapper extends Mapper<LongWritable, Text, IntWritable, PointWritable> {
 		private PointWritable[] centroids;
-		private final IntWritable reducerKey = new IntWritable();
-		private final PointWritable reducerValue = new PointWritable();
+		// private final IntWritable reducerKey = new IntWritable();
+		// private final PointWritable reducerValue = new PointWritable();
 
 		private int k, d;
 
@@ -55,6 +55,7 @@ public class KMeansMapReduce {
 				return;
 			}
 
+			// debug
 			System.out.println("ID: " + point.getID() + " - COO: " + Arrays.toString(point.getCoordinates()));
 
 			// Find the nearest centroid to the point
@@ -99,33 +100,30 @@ public class KMeansMapReduce {
 
 	}
 
-	public static class KMeansCombiner extends Reducer<IntWritable, PointWritable, IntWritable, ClusterSumWritable> {
+	public static class KMeansCombiner
+			extends Reducer<IntWritable, Iterable<PointWritable>, IntWritable, PointWritable> {
 		public KMeansCombiner() {
 		}
 
-		public static PointWritable calculateClusterSum(PointWritable p) {
-
-			double[] sum = null;
-			for (PointWritable point : values) {
-				if (sum == null) {
-					sum = new double[point.getCoordinates().length];
-				}
-				for (int i = 0; i < sum.length; i++) {
-					sum[i] += point.getCoordinates()[i];
-					numero_punti_cluster++;
-				}
-				p.set(sum, numero_punti_cluster);
-			}
-		}
+		private int k, d;
 
 		@Override
 		protected void reduce(IntWritable key, Iterable<PointWritable> values, Context context)
 				throws IOException, InterruptedException {
-			// Calculate the sum of points and the count
-			// ClusterSumWritable clusterSum = KMeansUtils.calculateClusterSum(values);
+
+			// Retrieve k and d from the configuration
+			this.k = conf.getInt("k", -1);
+			this.d = conf.getInt("d", -1);
+
+			// Initialize partial sum value to 0
+			PointWritable partialSum = new PointWritable(d);
+
+			for (PointWritable point : values) {
+				partialSum.sumPoint(point);
+			}
 
 			// Write the cluster id and the cluster sum to the context
-			context.write(key, clusterSum);
+			context.write(key, partialSum);
 		}
 
 	}

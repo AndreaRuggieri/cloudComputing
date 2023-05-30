@@ -17,19 +17,44 @@ public class PointWritable implements Writable {
     private int numero_punti_cluster;
     // sum_features non mi serve, come array uso coordinates
 
-    public PointWritable() {
-        // Il costruttore vuoto:
-        // - inizializza l'id a 0
-        // - crea un array di dimensione uno, tanto è possibile cambiarlo con la
-        // relativa set
-        // - inizializza il numero di punti presenti nel relativo cluster a 0
-        // - inizializza la somma (parziale) delle features presenti nel cluster a 0
-        this.coordinates = new double[1];
-        this.coordinates[0] = -0;
-        this.id = new IntWritable(-1);
-        this.numero_punti_cluster = 0; // all'inizio non ci sono punti nel cluster
-        // this(new double[0], new IntWritable(-1)); // default id is -1, indicating no
-        // id assigned
+    // public PointWritable() {
+    // // Il costruttore vuoto:
+    // // - inizializza l'id a 0
+    // // - crea un array di dimensione uno, tanto è possibile cambiarlo con la
+    // // relativa set
+    // // - inizializza il numero di punti presenti nel relativo cluster a 0
+    // // - inizializza la somma (parziale) delle features presenti nel cluster a 0
+    // this.coordinates = new double[1];
+    // this.coordinates[0] = -0;
+    // this.id = new IntWritable(-1);
+    // this.numero_punti_cluster = 0; // all'inizio non ci sono punti nel cluster
+    // // this(new double[0], new IntWritable(-1)); // default id is -1, indicating
+    // no
+    // // id assigned
+    // }
+
+    public PointWritable(int d) { // constructor for a 0-initialized point of dimension d
+        this.id = 0;
+        this.coordinates = new double[d];
+        for (int i = 0; i < d; i++) {
+            this.coordinates[i] = 0;
+        }
+        // Anche in questo costruttore bisogna settare num a 0
+        this.numero_punti_cluster = 0;
+    }
+
+    public PointWritable(double[] coordinates, IntWritable id) { // constructor now accepts an id
+        this.coordinates = coordinates;
+        this.id = id;
+        // Anche in questo costruttore bisogna settare num a 0
+        this.numero_punti_cluster = 0;
+    }
+
+    public PointWritable(double[] coordinates, IntWritable id, int numero) { // constructor now accepts an id
+        this.coordinates = coordinates;
+        this.id = id;
+        // Anche in questo costruttore bisogna settare num a 0
+        this.numero_punti_cluster = numero;
     }
 
     public static PointWritable[] generateCentroids(int k, int d) {
@@ -47,20 +72,6 @@ public class PointWritable implements Writable {
             centroidi[i] = pw; // assign the generated PointWritable to the array
         }
         return centroidi;
-    }
-
-    public PointWritable(double[] coordinates, IntWritable id) { // constructor now accepts an id
-        this.coordinates = coordinates;
-        this.id = id;
-        // Anche in questo costruttore bisogna settare num a 0
-        this.numero_punti_cluster = 0;
-    }
-
-    public PointWritable(double[] coordinates, IntWritable id, int numero) { // constructor now accepts an id
-        this.coordinates = coordinates;
-        this.id = id;
-        // Anche in questo costruttore bisogna settare num a 0
-        this.numero_punti_cluster = numero;
     }
 
     public void set(int index, double value) {
@@ -148,6 +159,13 @@ public class PointWritable implements Writable {
         sb.delete(sb.length() - 2, sb.length());
         sb.append("]"); // , num punti appartenenti al cluster: " numero_punti_cluster );
         return sb.toString().trim();
+    }
+
+    public PointWritable sumPoint(PointWritable point) {
+        for (int i = 0; i < this.coordinates.length; i++) {
+            this.coordinates[i] += point.getCoordinates()[i];
+            this.numero_punti_cluster++;
+        }
     }
 
 }
