@@ -172,14 +172,24 @@ public class KMeansMapReduce {
 	}
 
 	public static void main(final String[] args) throws Exception {
+		long start = 0;
+		long end = 0;
+		long startIC = 0;
+		long endIC = 0;
+
+		start = System.currentTimeMillis();
+
 		final Configuration conf = new Configuration();
 		String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
 
-		int k = Integer.parseInt(otherArgs[1]);
-		int d = Integer.parseInt(otherArgs[2]);
-		int MaxIterations = Integer.parseInt(otherArgs[3]);
+		// parameters
+		int k = Integer.parseInt(otherArgs[1]); // number of clusters
+		int d = Integer.parseInt(otherArgs[2]); // dimension of a datapoint
+		int MaxIterations = Integer.parseInt(otherArgs[3]); // max number of iterations
 
-		double threshold = 0.00001; // Define a threshold for the centroid difference
+		// TODO: aggiungere threshold come parametro passato
+
+		double threshold = 0.0001; // Define a threshold for the centroid difference
 		boolean converged = false;
 		boolean maxIterationReached = false;
 		int count = 0;
@@ -215,6 +225,8 @@ public class KMeansMapReduce {
 			FileInputFormat.addInputPath(job, new Path(args[0]));
 			FileOutputFormat.setOutputPath(job, new Path(args[4] + "/iteration" + count));
 
+			// TODO: inserire struttura di solidità: se il job fallisce, uscire con -1 dal
+			// programma
 			job.waitForCompletion(true);
 
 			// Load the old and new centroids from HDFS
@@ -247,6 +259,15 @@ public class KMeansMapReduce {
 
 			CentroidUtils.saveCentroids(newCentroids, "kmeans/oldCentroids.txt");
 		}
+
+		end = System.currentTimeMillis();
+
+		end -= start;
+
+		System.out.println("execution time: " + end + " ms");
+		System.out.println("n_iter: " + count);
+
+		System.exit(0);
 	}
 
 }
