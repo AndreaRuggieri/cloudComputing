@@ -21,6 +21,8 @@ import org.apache.hadoop.fs.FileStatus;
 
 import it.unipi.hadoop.CentroidUtils;
 
+// TODO: Spostare Mapper, Combiner e Reducer in file diversi
+
 public class KMeansMapReduce {
 
 	public static class KMeansMapper extends Mapper<LongWritable, Text, IntWritable, PointWritable> {
