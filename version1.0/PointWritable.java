@@ -64,23 +64,6 @@ public class PointWritable implements Writable {
         this.numero_punti_cluster = numero;
     }
 
-    public static PointWritable[] generateCentroids(int k, int d) {
-        // Creo un array di punti, inizialmente vuoto
-        PointWritable[] centroidi = new PointWritable[k];
-        for (int i = 0; i < k; i++) {
-            // Per ogni punto che devo metterci dentro inserisco un double casuale
-            PointWritable pw = new PointWritable(new double[d], new IntWritable(i)); // assign id during generation
-            for (int j = 0; j < d; j++) {
-                // Estraggo il numero random, i-esima feature (coordinata) del mio centroide
-                Random random = new Random();
-                // Setto la feature nell'i-esima posizione del punto in questione
-                pw.set(j, random.nextDouble() * 1000);
-            }
-            centroidi[i] = pw; // assign the generated PointWritable to the array
-        }
-        return centroidi;
-    }
-
     public void set(int index, double value) {
         this.getCoordinates()[index] = value;
     }
