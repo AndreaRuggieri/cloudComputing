@@ -9,25 +9,12 @@ import java.io.DataInput;
 import java.util.Random;
 
 public class PointWritable implements Writable {
+    // Features added to implement an object can work both as Point and ClusterSum
     private double[] coordinates;
     private IntWritable id; // ID field added
-
-    // Features added to implement an object can work both as Point and ClusterSum
-
-    private int numero_punti_cluster;
-    // sum_features non mi serve, come array uso coordinates
+    private int clusterElementsNumber;
 
     public PointWritable() {
-        // Il costruttore vuoto:
-        // - inizializza l'id a 0
-        // - crea un array di dimensione uno, tanto è possibile cambiarlo con la
-        // relativa set
-        // - inizializza il numero di punti presenti nel relativo cluster a 0
-        // - inizializza la somma (parziale) delle features presenti nel cluster a 0
-        this.coordinates = new double[1];
-        this.coordinates[0] = -0;
-        this.id = new IntWritable(-1);
-        this.numero_punti_cluster = -127; // all'inizio non ci sono punti nel cluster
     }
 
     // copy constructor
@@ -37,7 +24,7 @@ public class PointWritable implements Writable {
             this.coordinates[i] = point.getCoordinates()[i];
         }
         this.id = new IntWritable(point.get_int_ID());
-        this.numero_punti_cluster = point.getNumeroPuntiCluster();
+        this.clusterElementsNumber = point.getClusterElementsNumber();
     }
 
     public PointWritable(int d) { // constructor for a 0-initialized point of dimension d
@@ -47,21 +34,21 @@ public class PointWritable implements Writable {
             this.coordinates[i] = 0;
         }
         // Anche in questo costruttore bisogna settare num a 0
-        this.numero_punti_cluster = 0;
+        this.clusterElementsNumber = 0;
     }
 
     public PointWritable(double[] coordinates, IntWritable id) { // constructor now accepts an id
         this.coordinates = coordinates;
         this.id = id;
         // Anche in questo costruttore bisogna settare num a 0
-        this.numero_punti_cluster = 0;
+        this.clusterElementsNumber = 0;
     }
 
     public PointWritable(double[] coordinates, IntWritable id, int numero) { // constructor now accepts an id
         this.coordinates = coordinates;
         this.id = id;
         // Anche in questo costruttore bisogna settare num a 0
-        this.numero_punti_cluster = numero;
+        this.clusterElementsNumber = numero;
     }
 
     public void set(int index, double value) {
@@ -73,22 +60,22 @@ public class PointWritable implements Writable {
             this.set(i, val[i]);
     }
 
-    public void set(double[] val, int numero_punti_cluster) {
+    public void set(double[] val, int clusterElementsNumber) {
         for (int i = 0; i < val.length; i++)
             this.set(i, val[i]);
-        this.setNumeroPuntiCluster(numero_punti_cluster);
+        this.setClusterElementsNumber(clusterElementsNumber);
     }
 
     public IntWritable getID() { // getter for id
         return this.id;
     }
 
-    public int getNumeroPuntiCluster() {
-        return this.numero_punti_cluster;
+    public int getClusterElementsNumber() {
+        return this.clusterElementsNumber;
     }
 
-    public void setNumeroPuntiCluster(int new_numero_punti_cluster) {
-        this.numero_punti_cluster = new_numero_punti_cluster;
+    public void setClusterElementsNumber(int new_clusterElementsNumber) {
+        this.clusterElementsNumber = new_clusterElementsNumber;
     }
 
     public int get_int_ID() { // getter for id
@@ -105,9 +92,9 @@ public class PointWritable implements Writable {
         for (double coordinate : coordinates) {
             out.writeDouble(coordinate);
         }
-        // Write id and numero_punti_cluster
+        // Write id and clusterElementsNumber
         id.write(out);
-        out.writeInt(numero_punti_cluster);
+        out.writeInt(clusterElementsNumber);
     }
 
     @Override
@@ -117,10 +104,21 @@ public class PointWritable implements Writable {
         for (int i = 0; i < length; i++) {
             coordinates[i] = in.readDouble();
         }
-        // Read id and numero_punti_cluster
+        // Read id and clusterElementsNumber
         id = new IntWritable();
         id.readFields(in);
-        numero_punti_cluster = in.readInt();
+        clusterElementsNumber = in.readInt();
+    }
+
+    public void sumPoint(PointWritable point) {
+        for (int i = 0; i < this.coordinates.length; i++) {
+            this.coordinates[i] += point.getCoordinates()[i];
+        }
+        if (point.getClusterElementsNumber() > 0) {
+            this.clusterElementsNumber += point.getClusterElementsNumber();
+        } else {
+            this.clusterElementsNumber++;
+        }
     }
 
     public IntWritable getNearestCentroid(PointWritable[] centroids) {
@@ -141,7 +139,6 @@ public class PointWritable implements Writable {
                 nearestCentroid = centroid.getID();
             }
         }
-
         return nearestCentroid;
     }
 
@@ -154,19 +151,8 @@ public class PointWritable implements Writable {
             sb.append(", ");
         }
         sb.delete(sb.length() - 2, sb.length());
-        sb.append("]"); // , num punti appartenenti al cluster: " numero_punti_cluster );
+        sb.append("]"); // , num punti appartenenti al cluster: " clusterElementsNumber );
         return sb.toString().trim();
-    }
-
-    public void sumPoint(PointWritable point) {
-        for (int i = 0; i < this.coordinates.length; i++) {
-            this.coordinates[i] += point.getCoordinates()[i];
-        }
-        if (point.getNumeroPuntiCluster() > 0) {
-            this.numero_punti_cluster += point.getNumeroPuntiCluster();
-        } else {
-            this.numero_punti_cluster++;
-        }
     }
 
 }

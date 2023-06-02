@@ -62,11 +62,10 @@ public class KMeansMapReduce {
 
 			String[] tokens = line.trim().split(",");
 
-			// if (tokens.length != d + 1) {
-			// throw new IllegalArgumentException(
-			// "Each line must have d + 1 tokens, where the first token is the ID and the
-			// remaining d tokens are the coordinates.");
-			// }
+			if (tokens.length != d + 1) {
+				throw new IllegalArgumentException(
+						"Each line must have d + 1 tokens, where the first token is the ID and the remaining d tokens are the coordinates.");
+			}
 
 			// Parse the ID
 			int id = Integer.parseInt(tokens[0]);
@@ -140,7 +139,7 @@ public class KMeansMapReduce {
 
 		private PointWritable calculateNewCentroid(PointWritable clusterSum, IntWritable id) {
 			double[] sum = clusterSum.getCoordinates();
-			int count = clusterSum.getNumeroPuntiCluster();
+			int count = clusterSum.getClusterElementsNumber();
 			double[] centroid = new double[sum.length];
 
 			for (int i = 0; i < sum.length; i++) {
@@ -318,7 +317,7 @@ public class KMeansMapReduce {
 		saveCentroids(centroids, "kmeans/oldCentroids.txt");
 
 		while (!converged && !maxIterationReached) {
-			System.out.println("CICLO: n -> " + count + 1);
+			System.out.println("CICLO: n -> " + (count + 1));
 
 			final Job job = new Job(conf, "kmeans");
 			// Add k and d to the Configuration
