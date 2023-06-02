@@ -44,23 +44,24 @@ public class PointWritable implements Writable {
         this.clusterElementsNumber = 0;
     }
 
-    public PointWritable(double[] coordinates, IntWritable id, int numero) { // constructor now accepts an id
+    public PointWritable(double[] coordinates, IntWritable id, int numero) { // constructor now accepts an id and a
+                                                                             // number of elements
         this.coordinates = coordinates;
         this.id = id;
         // Anche in questo costruttore bisogna settare num a 0
         this.clusterElementsNumber = numero;
     }
 
-    public void set(int index, double value) {
+    private void set(int index, double value) {
         this.getCoordinates()[index] = value;
     }
 
-    public void set(double[] val) {
+    private void set(double[] val) {
         for (int i = 0; i < val.length; i++)
             this.set(i, val[i]);
     }
 
-    public void set(double[] val, int clusterElementsNumber) {
+    private void set(double[] val, int clusterElementsNumber) {
         for (int i = 0; i < val.length; i++)
             this.set(i, val[i]);
         this.setClusterElementsNumber(clusterElementsNumber);
@@ -74,7 +75,7 @@ public class PointWritable implements Writable {
         return this.clusterElementsNumber;
     }
 
-    public void setClusterElementsNumber(int new_clusterElementsNumber) {
+    private void setClusterElementsNumber(int new_clusterElementsNumber) {
         this.clusterElementsNumber = new_clusterElementsNumber;
     }
 
@@ -128,6 +129,7 @@ public class PointWritable implements Writable {
         for (PointWritable centroid : centroids) {
 
             double sum = 0.0;
+
             for (int i = 0; i < this.coordinates.length; i++) {
                 double diff = this.coordinates[i] - centroid.coordinates[i];
                 sum += diff * diff;

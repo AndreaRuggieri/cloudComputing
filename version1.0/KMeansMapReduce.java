@@ -19,6 +19,8 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 
+import it.unipi.hadoop.CentroidUtils;
+
 public class KMeansMapReduce {
 
 	public static class KMeansMapper extends Mapper<LongWritable, Text, IntWritable, PointWritable> {
@@ -34,7 +36,7 @@ public class KMeansMapReduce {
 			this.k = conf.getInt("k", -1);
 			this.d = conf.getInt("d", -1);
 
-			centroids = loadCentroids("f", "kmeans/oldCentroids.txt");
+			centroids = CentroidUtils.loadCentroids("f", "kmeans/oldCentroids.txt");
 
 		}
 
@@ -62,22 +64,19 @@ public class KMeansMapReduce {
 
 			String[] tokens = line.trim().split(",");
 
-			if (tokens.length != d + 1) {
+			if (tokens.length != d) {
 				throw new IllegalArgumentException(
-						"Each line must have d + 1 tokens, where the first token is the ID and the remaining d tokens are the coordinates.");
+						"Each line must have d tokens, where the first token is the ID and the remaining d tokens are the coordinates.");
 			}
-
-			// Parse the ID
-			int id = Integer.parseInt(tokens[0]);
 
 			// Parse the coordinates
 			double[] coordinates = new double[d];
 			for (int i = 0; i < d; i++) {
-				coordinates[i] = Double.parseDouble(tokens[i + 1]);
+				coordinates[i] = Double.parseDouble(tokens[i]);
 			}
 
 			// Create and return the point
-			return new PointWritable(coordinates, new IntWritable(id));
+			return new PointWritable(coordinates, new IntWritable(0));
 		}
 
 	}
@@ -100,11 +99,11 @@ public class KMeansMapReduce {
 			PointWritable partialSum = new PointWritable(d);
 
 			for (PointWritable point : values) {
-				partialSum.sumPoint(new PointWritable(point.getCoordinates(), point.getID()));
+				partialSum.sumPoint(point);
 			}
 
 			// Write the cluster id and the cluster sum to the context
-			context.write(key, new PointWritable(partialSum));
+			context.write(key, partialSum);
 		}
 
 	}
@@ -151,132 +150,6 @@ public class KMeansMapReduce {
 
 	}
 
-	public static PointWritable[] getRandomCentroids(String filename, int k) throws IOException {
-		List<PointWritable> centroids = new ArrayList<>();
-		String line;
-
-		Configuration conf = new Configuration();
-		FileSystem fs = FileSystem.get(conf);
-
-		Path filePath = new Path(filename);
-		if (!fs.exists(filePath)) {
-			throw new IOException("File does not exist: " + filename);
-		}
-		try (FSDataInputStream in = fs.open(filePath);
-				BufferedReader reader = new BufferedReader(new InputStreamReader(in))) {
-			int i = 0;
-			while (i < k && (line = reader.readLine()) != null) {
-				i++;
-				String[] parts = line.split(",");
-				IntWritable id = new IntWritable(i);
-				double[] coordinates = new double[parts.length - 1];
-				for (int j = 1; j < parts.length; j++) {
-					coordinates[j - 1] = Double.parseDouble(parts[j]);
-				}
-				centroids.add(new PointWritable(coordinates, id));
-			}
-		}
-
-		// Sort centroids by id
-		centroids.sort(Comparator.comparingInt(PointWritable::get_int_ID));
-
-		return centroids.toArray(new PointWritable[0]);
-	}
-
-	public static PointWritable[] loadCentroids(String mod, String filename) throws IOException {
-		List<PointWritable> centroids = new ArrayList<>();
-		String line;
-
-		Configuration conf = new Configuration();
-		FileSystem fs = FileSystem.get(conf);
-
-		switch (mod) {
-			case "f":
-				Path filePath = new Path(filename);
-				if (!fs.exists(filePath)) {
-					throw new IOException("File does not exist: " + filename);
-				}
-				try (FSDataInputStream in = fs.open(filePath);
-						BufferedReader reader = new BufferedReader(new InputStreamReader(in))) {
-					while ((line = reader.readLine()) != null) {
-						String[] parts = line.split("\\[");
-						IntWritable id = new IntWritable(Integer.parseInt(parts[0].trim()));
-						String[] coordStrings = parts[1].substring(0, parts[1].length() - 1).split(",\\s");
-						double[] coordinates = Arrays.stream(coordStrings).mapToDouble(Double::parseDouble).toArray();
-						centroids.add(new PointWritable(coordinates, id));
-					}
-				}
-				break;
-
-			case "d":
-				Path dirPath = new Path(filename);
-				if (!fs.exists(dirPath) || !fs.isDirectory(dirPath)) {
-					throw new IOException("Directory does not exist: " + filename);
-				}
-				FileStatus[] fileStatuses = fs.listStatus(dirPath, path -> path.getName().startsWith("part"));
-				for (FileStatus fileStatus : fileStatuses) {
-					try (FSDataInputStream in = fs.open(fileStatus.getPath());
-							BufferedReader reader = new BufferedReader(new InputStreamReader(in))) {
-						while ((line = reader.readLine()) != null) {
-							String[] parts = line.split("\\[");
-							IntWritable id = new IntWritable(Integer.parseInt(parts[0].trim()));
-							String[] coordStrings = parts[1].substring(0, parts[1].length() - 1).split(",\\s");
-							double[] coordinates = Arrays.stream(coordStrings).mapToDouble(Double::parseDouble)
-									.toArray();
-							centroids.add(new PointWritable(coordinates, id));
-						}
-					}
-				}
-				break;
-
-			default:
-				break;
-		}
-
-		// Sort centroids by id
-		centroids.sort(Comparator.comparingInt(PointWritable::get_int_ID));
-
-		return centroids.toArray(new PointWritable[0]);
-	}
-
-	public static void saveCentroids(PointWritable[] centroids, String filename) throws IOException {
-		Configuration conf = new Configuration();
-		FileSystem fs = FileSystem.get(conf);
-		Path outputPath = new Path(filename);
-
-		if (fs.exists(outputPath)) {
-			// If file exists, remove it to start fresh
-			fs.delete(outputPath, true);
-		}
-
-		FSDataOutputStream out = fs.create(outputPath);
-
-		for (PointWritable centroid : centroids) {
-			out.writeBytes(centroid.get_int_ID() + " " + centroid.toString());
-			out.writeBytes("\n");
-		}
-
-		out.close();
-
-	}
-
-	public static double calculateCentroidDifference(PointWritable centroid1, PointWritable centroid2) {
-		double[] coordinates1 = centroid1.getCoordinates();
-		double[] coordinates2 = centroid2.getCoordinates();
-
-		if (coordinates1.length != coordinates2.length) {
-			throw new IllegalArgumentException("Centroids must have the same dimension.");
-		}
-
-		double sum = 0.0;
-		for (int i = 0; i < coordinates1.length; i++) {
-			double diff = coordinates1[i] - coordinates2[i];
-			sum += diff * diff;
-		}
-
-		return Math.sqrt(sum);
-	}
-
 	public static void debugToFile(String text) throws IOException {
 		Configuration conf = new Configuration();
 		FileSystem fs = FileSystem.get(conf);
@@ -294,7 +167,6 @@ public class KMeansMapReduce {
 		out.writeBytes(text);
 		out.writeBytes("\n");
 		out.close();
-
 	}
 
 	public static void main(final String[] args) throws Exception {
@@ -312,9 +184,9 @@ public class KMeansMapReduce {
 
 		System.out.println("THRESHOLD: " + threshold);
 
-		PointWritable[] centroids = getRandomCentroids("input.txt", k);
+		PointWritable[] centroids = CentroidUtils.getStartingCentroids("input.txt", k);
 		// Salviamo i centroidi appena generati
-		saveCentroids(centroids, "kmeans/oldCentroids.txt");
+		CentroidUtils.saveCentroids(centroids, "kmeans/oldCentroids.txt");
 
 		while (!converged && !maxIterationReached) {
 			System.out.println("CICLO: n -> " + (count + 1));
@@ -344,14 +216,14 @@ public class KMeansMapReduce {
 			job.waitForCompletion(true);
 
 			// Load the old and new centroids from HDFS
-			PointWritable[] oldCentroids = loadCentroids("f", "kmeans/oldCentroids.txt");
-			PointWritable[] newCentroids = loadCentroids("d", args[4] + "/iteration" + count); // outputTestxx/part*
+			PointWritable[] oldCentroids = CentroidUtils.loadCentroids("f", "kmeans/oldCentroids.txt");
+			PointWritable[] newCentroids = CentroidUtils.loadCentroids("d", args[4] + "/iteration" + count); // outputTestxx/part*
 			count++;
 
 			// Calculate the difference between the old and new centroids
 			double difference = 0.0;
 			for (int i = 0; i < k; i++) {
-				double temp = calculateCentroidDifference(oldCentroids[i], newCentroids[i]);
+				double temp = CentroidUtils.calculateCentroidDifference(oldCentroids[i], newCentroids[i]);
 				if (temp > difference) {
 					difference = temp;
 				}
@@ -371,7 +243,7 @@ public class KMeansMapReduce {
 				System.out.println("END: max iterations reached.");
 			}
 
-			saveCentroids(newCentroids, "kmeans/oldCentroids.txt");
+			CentroidUtils.saveCentroids(newCentroids, "kmeans/oldCentroids.txt");
 		}
 	}
 
