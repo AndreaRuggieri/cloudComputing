@@ -1,13 +1,11 @@
-import random
 import argparse
 from sklearn.datasets import make_blobs
 
-def generate_file(n, d):
-    centers = 5
+def generate_file(n, d, c):
+    
+    points, y = make_blobs(n_samples=n, centers=c, n_features=d, shuffle=True, center_box=(0, 1000), cluster_std=30)
 
-    points, y = make_blobs(n_samples=n, centers=centers, n_features=d, shuffle=True, center_box=(0, 1000), cluster_std=30)
-
-    filename = f"input_{n}_{d}.txt"
+    filename = f"input_{n}_{d}_{c}.txt"
 
     with open(filename, "w") as file:
         i = 0
@@ -32,4 +30,4 @@ if __name__ == "__main__":
                         default=3, help="Number of centers")
     args = parser.parse_args()
 
-    generate_file(args.num_rows, args.num_columns)
+    generate_file(args.num_rows, args.num_columns, args.num_centers)

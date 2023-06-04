@@ -61,7 +61,7 @@ public class KMeansMapReduce {
 		out.writeBytes("\n");
 		out.writeBytes("EXECUTION TIME: " + time + " s");
 		out.writeBytes("\n");
-		out.writeBytes("N° ITERATIONS: " + n_iter);
+		out.writeBytes("N. ITERATIONS: " + n_iter);
 		out.writeBytes("\n");
 		out.writeBytes("END: " + endReason);
 		out.writeBytes("\n");
@@ -104,7 +104,7 @@ public class KMeansMapReduce {
 		CentroidUtils.saveCentroids(centroids, "kmeans/oldCentroids.txt");
 
 		while (!converged && !maxIterationReached) {
-			System.out.println("Cycle n°: -> " + (count + 1));
+			System.out.println("Cycle n.: -> " + (count + 1));
 
 			final Job job = new Job(conf, "kmeans");
 			// Add k and d to the Configuration
@@ -179,7 +179,7 @@ public class KMeansMapReduce {
 		}
 
 		System.out.println("EXECUTION TIME: " + endTime + " s");
-		System.out.println("N° ITERATIONS: " + count);
+		System.out.println("N. ITERATIONS: " + count);
 
 		System.exit(0);
 	}
