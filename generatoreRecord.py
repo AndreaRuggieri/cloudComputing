@@ -10,12 +10,15 @@ def generate_file(n, d):
     filename = f"input_{n}_{d}.txt"
 
     with open(filename, "w") as file:
+        i = 0
         for point in points:
             for value in range(d):
                 if value == (d - 1):
-                    file.write(str(round(point[value], 4)))
+                    file.write(str(point[value]))
                 else:
-                    file.write(str(round(point[value], 4)) + ",")
+                    file.write(str(point[value]) + ",")
+            #file.write(' - ' + str(y[i]))
+            i+=1
             file.write("\n")
 
 
