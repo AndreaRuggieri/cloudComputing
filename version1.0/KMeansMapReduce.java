@@ -34,7 +34,7 @@ public class KMeansMapReduce {
 		Path outputPath = new Path("debug/debug" + c + ".txt");
 
 		if (fs.exists(outputPath)) {
-			// If file exists, remove it to start fresh
+			// If file exists, remove it
 			fs.delete(outputPath, true);
 		}
 		FSDataOutputStream out = fs.create(outputPath);
@@ -43,13 +43,39 @@ public class KMeansMapReduce {
 		out.close();
 	}
 
+	public static void saveOutputStats(String inputFile, String dir, Long time, int n_iter, int k, int d,
+			String endReason) throws IOException {
+		Configuration conf = new Configuration();
+		FileSystem fs = FileSystem.get(conf);
+
+		Path outputPath = new Path(dir + "/stat.txt");
+
+		if (fs.exists(outputPath)) {
+			// If file exists, remove it
+			fs.delete(outputPath, true);
+		}
+		FSDataOutputStream out = fs.create(outputPath);
+		out.writeBytes("Input file: " + inputFile);
+		out.writeBytes("\n");
+		out.writeBytes("Num Clusters: : " + k + " - Data Dimension: " + d);
+		out.writeBytes("\n");
+		out.writeBytes("EXECUTION TIME: " + time + " s");
+		out.writeBytes("\n");
+		out.writeBytes("N° ITERATIONS: " + n_iter);
+		out.writeBytes("\n");
+		out.writeBytes("END: " + endReason);
+		out.writeBytes("\n");
+		out.close();
+	}
+
 	public static void main(final String[] args) throws Exception {
-		long start = 0;
-		long end = 0;
+		long startTime = 0;
+		long endTime = 0;
 		long startIC = 0;
 		long endIC = 0;
+		String endReason = "";
 
-		start = System.currentTimeMillis();
+		startTime = System.currentTimeMillis();
 
 		final Configuration conf = new Configuration();
 		String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
@@ -59,24 +85,26 @@ public class KMeansMapReduce {
 			System.exit(1);
 		}
 
-		// parameters
+		// parameters parsing
+		String input = otherArgs[0]; // input file
 		int k = Integer.parseInt(otherArgs[1]); // number of clusters
 		int d = Integer.parseInt(otherArgs[2]); // dimension of a datapoint
 		int MaxIterations = Integer.parseInt(otherArgs[3]); // max number of iterations
 		double threshold = Double.parseDouble(otherArgs[4]);
+		String output = otherArgs[5]; // output directory
 
 		boolean converged = false;
 		boolean maxIterationReached = false;
 		int count = 0;
 
-		System.out.println("THRESHOLD: " + threshold);
+		System.out.println("Given Threshold: " + threshold);
 
-		PointWritable[] centroids = CentroidUtils.getStartingCentroids("input.txt", k);
+		PointWritable[] centroids = CentroidUtils.getStartingCentroids(input, k);
 		// Salviamo i centroidi appena generati
 		CentroidUtils.saveCentroids(centroids, "kmeans/oldCentroids.txt");
 
 		while (!converged && !maxIterationReached) {
-			System.out.println("CICLO: n -> " + (count + 1));
+			System.out.println("Cycle n°: -> " + (count + 1));
 
 			final Job job = new Job(conf, "kmeans");
 			// Add k and d to the Configuration
@@ -97,8 +125,8 @@ public class KMeansMapReduce {
 			job.setMapperClass(KMeansMapper.class);
 			job.setCombinerClass(KMeansCombiner.class);
 			job.setReducerClass(KMeansReducer.class);
-			FileInputFormat.addInputPath(job, new Path(args[0]));
-			FileOutputFormat.setOutputPath(job, new Path(args[5] + "/iteration" + count));
+			FileInputFormat.addInputPath(job, new Path(input));
+			FileOutputFormat.setOutputPath(job, new Path(output + "/iteration" + count));
 
 			// if a job fails, exit the program with code 1
 			if (!job.waitForCompletion(true)) {
@@ -108,7 +136,7 @@ public class KMeansMapReduce {
 
 			// Load the old and new centroids from HDFS
 			PointWritable[] oldCentroids = CentroidUtils.loadCentroids("f", "kmeans/oldCentroids.txt");
-			PointWritable[] newCentroids = CentroidUtils.loadCentroids("d", args[5] + "/iteration" + count); // outputTestxx/part*
+			PointWritable[] newCentroids = CentroidUtils.loadCentroids("d", output + "/iteration" + count); // outputTestxx/part*
 			count++;
 
 			// Calculate the difference between the old and new centroids
@@ -120,31 +148,38 @@ public class KMeansMapReduce {
 				}
 			}
 
-			System.out.println("DIFFERENZA: " + difference);
+			System.out.println("Difference: " + difference);
 
 			// If the difference is less than the threshold, the algorithm has converged
 			if (difference < threshold) {
 				converged = true;
+				endReason = "threshold";
 				System.out.println("END: threshold.");
 			}
 
 			// if the number of max iterations is reached, the algorithm stops
 			if (count >= MaxIterations) {
 				maxIterationReached = true;
+				endReason = "max iterations reached";
 				System.out.println("END: max iterations reached.");
 			}
 
 			CentroidUtils.saveCentroids(newCentroids, "kmeans/oldCentroids.txt");
 		}
 
-		end = System.currentTimeMillis();
+		endTime = System.currentTimeMillis();
+		endTime -= startTime;
+		endTime /= 1000;
 
-		end -= start;
+		try {
+			saveOutputStats(input, output, endTime, count, k, d, endReason);
 
-		end /= 1000;
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 
-		System.out.println("execution time: " + end + " s");
-		System.out.println("n_iter: " + count);
+		System.out.println("EXECUTION TIME: " + endTime + " s");
+		System.out.println("N° ITERATIONS: " + count);
 
 		System.exit(0);
 	}
