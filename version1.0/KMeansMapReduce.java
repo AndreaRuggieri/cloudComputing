@@ -139,9 +139,20 @@ public class KMeansMapReduce {
 			PointWritable[] newCentroids = CentroidUtils.loadCentroids("d", output + "/iteration" + count); // outputTestxx/part*
 			count++;
 
+			// DEBUG
+			// System.out.println("CENTROIDI VECCHI:");
+			// for (int i = 0; i < oldCentroids.length; i++) {
+			// System.out.println(i + " " + oldCentroids[i].toString());
+			// }
+			// System.out.println("\nCENTROIDI NUOVI:");
+			// for (int i = 0; i < newCentroids.length; i++) {
+			// System.out.println(i + " " + newCentroids[i].toString());
+			// }
+			// System.out.println("\n");
+
 			// Calculate the difference between the old and new centroids
 			double difference = 0.0;
-			for (int i = 0; i < k; i++) {
+			for (int i = 0; i < newCentroids.length; i++) {
 				double temp = CentroidUtils.calculateCentroidDifference(oldCentroids[i], newCentroids[i]);
 				if (temp > difference) {
 					difference = temp;
