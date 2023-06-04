@@ -2,7 +2,7 @@ import numpy as np
 from sklearn.cluster import KMeans
 # Read input from file
 data = []
-with open("./input_500000_15.txt", "r") as file:
+with open("./input_10000_7_5.txt", "r") as file:
     for line in file:
         line = line.strip().split(",")
         point = [float(x) for x in line[0:]]
