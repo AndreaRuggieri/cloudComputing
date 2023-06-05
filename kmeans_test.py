@@ -22,9 +22,9 @@ def run_command(command):
         return output.decode()
 
 # Parametri per la generazione dei file di input
-n_values = [10000, 50000, 100000]
+n_values = [5000, 25000, 100000]
 d_values = [2, 4, 7]
-c_values = [5, 10, 20, 50, 100]
+c_values = [5, 10, 25]
 
 # Discord webhook URL
 webhook_url = 'https://discord.com/api/webhooks/1115003067188908093/-Eyki_ZFM4Y6mL1Oaqqcc4G3xbBe5lMvXKNZHCkqDkbwmusL-eqYX-XYTx_knOVj3yoj'
@@ -38,9 +38,6 @@ for n in n_values:
                 # Genera il file di input
                 input_file_name = f'input_{n}_{d}_{c}.txt'
                 output_file_path = f'test_{n}_{d}_{c}'
-                gen_command = f'python3 generatoreRecord.py -n {n} -d {d} -c {c}'
-                print(f"Generating input file: {input_file_name}")
-                run_command(gen_command)
 
                 # Check if output directory already exists
                 ls_command = f"hadoop fs -ls"
@@ -48,6 +45,10 @@ for n in n_values:
                 if output_file_path in ls_output:
                     print(f"Skipping as output directory {output_file_path} already exists")
                     continue
+                
+                gen_command = f'python3 generatoreRecord.py -n {n} -d {d} -c {c}'
+                print(f"Generating input file: {input_file_name}")
+                run_command(gen_command)
 
                 # Sposta il file su HDFS
                 hdfs_command = f'hadoop fs -put {input_file_name} {input_file_name}'

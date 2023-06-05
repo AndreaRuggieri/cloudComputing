@@ -136,7 +136,7 @@ public class KMeansMapReduce {
 
 			// Load the old and new centroids from HDFS
 			PointWritable[] oldCentroids = CentroidUtils.loadCentroids("f", "kmeans/oldCentroids.txt");
-			PointWritable[] newCentroids = CentroidUtils.loadCentroids("d", output + "/iteration" + count); // outputTestxx/part*
+			PointWritable[] newCentroids = CentroidUtils.loadCentroids("d", output + "/iteration" + count);
 			count++;
 
 			// DEBUG
