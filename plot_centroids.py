@@ -4,12 +4,28 @@ import matplotlib.pyplot as plt
 import re
 import json
 import numpy as np
+import matplotlib.cm as cm
 
 # Root directory
 root_dir = './'
+# Input directory
+input_dir = './../oldInputs'
 
 # Regex to extract the centroid id and its coordinates
 pattern = r'(\d+)\s+\[([\d.,\s]+)\]'
+
+# Function to read points from file
+def read_points_from_file(file_name, num_points=None):
+    points = []
+    with open(file_name, 'r') as file:
+        for i, line in enumerate(file):
+            if num_points is not None and i >= num_points:
+                break
+            values = line.strip().split(',')
+            x = float(values[0])
+            y = float(values[1])
+            points.append((x, y))
+    return points
 
 # Get the directories
 test_dirs = [d for d in os.listdir(root_dir) if os.path.isdir(os.path.join(root_dir, d)) and '_2_' in d]
@@ -34,6 +50,12 @@ for dir in test_dirs:
     # Prepare a dictionary to store the centroid data
     data[dir] = {'num_clusters': num_clusters, 'num_iterations': num_iterations, 'centroids': {i: {j: [0]*data_dim for j in range(num_clusters)} for i in range(num_iterations)}}
 
+    # Get initial centroid positions from the first k records of the input file
+    input_file_path = os.path.join(input_dir, f'input_{dir[5:]}.txt')
+    initial_centroids = read_points_from_file(input_file_path, num_clusters)
+    for id, centroid in enumerate(initial_centroids):
+        data[dir]['centroids'][0][id] = list(centroid)
+
     # Parse iteration directories
     for iteration_dir in iteration_dirs:
         iteration = int(re.search(r'iteration(\d+)', iteration_dir).group(1))
@@ -55,17 +77,25 @@ for dir in test_dirs:
             if data[dir]['centroids'][i][id] == [0]*data_dim:
                 data[dir]['centroids'][i][id] = data[dir]['centroids'][i-1][id]
 
-# Plot the centroid positions over iterations
+# Plotting
 for dir, dir_data in data.items():
     num_clusters = dir_data['num_clusters']
     num_iterations = dir_data['num_iterations']
     plt.figure(figsize=(10, 6))
     plt.title(f'Centroid Positions Over Iterations for {dir}')
-    for id in range(num_clusters):
-        x = np.arange(num_iterations)
-        y = [dir_data['centroids'][iteration][id][0] for iteration in range(num_iterations)]  # Assumes 2D data, change this for higher dimensions
-        plt.plot(x, y, label=f'Centroid {id}')
-    plt.xlabel('Iteration')
-    plt.ylabel('Centroid Position')
+    # Plot dataset points
+    input_file_path = os.path.join(input_dir, f'input_{dir[5:]}.txt')
+    points = read_points_from_file(input_file_path)
+    x_data = [point[0] for point in points]
+    y_data = [point[1] for point in points]
+    plt.scatter(x_data, y_data, s=5, alpha=0.1)  # Adjust the 's' parameter to change the size of the points
+    # Plot centroid positions
+    colors = cm.rainbow(np.linspace(0, 1, num_clusters))  # Color map
+    for id, color in zip(range(num_clusters), colors):
+        x = [dir_data['centroids'][iteration][id][0] for iteration in range(num_iterations)]
+        y = [dir_data['centroids'][iteration][id][1] for iteration in range(num_iterations)]
+        plt.plot(x, y, '-o', label=f'Centroid {id}') #, color=color)
+    plt.xlabel('X Position')
+    plt.ylabel('Y Position')
     plt.legend()
     plt.show()
