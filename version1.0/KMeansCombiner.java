@@ -22,25 +22,25 @@ import org.apache.hadoop.mapreduce.Reducer;
 public class KMeansCombiner
         extends Reducer<IntWritable, PointWritable, IntWritable, PointWritable> {
 
-    private int k, d;
-
     @Override
     protected void reduce(IntWritable key, Iterable<PointWritable> values, Context context)
             throws IOException, InterruptedException {
 
         Configuration conf = context.getConfiguration();
         // Retrieve k and d from the configuration
-        this.k = conf.getInt("k", -1);
-        this.d = conf.getInt("d", -1);
+        int k = conf.getInt("k", -1);
+        int d = conf.getInt("d", -1);
 
         // Initialize partial sum value to 0
         PointWritable partialSum = new PointWritable(d);
 
+        // for each datapoint passed to the combiner, sum it to the partial sum of
+        // the current cluster (given from the key)
         for (PointWritable point : values) {
             partialSum.sumPoint(point);
         }
 
-        // Write the cluster id and the cluster sum to the context
+        // Write the cluster id and the cluster partial sum to the context
         context.write(key, partialSum);
     }
 

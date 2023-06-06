@@ -9,11 +9,13 @@ import java.io.DataInput;
 import java.util.Random;
 
 public class PointWritable implements Writable {
-    // Features added to implement an object can work both as Point and ClusterSum
-    private double[] coordinates;
-    private IntWritable id; // ID field added
-    private int clusterElementsNumber;
+    // Features added to implement an object can work both as datapoint, centroid or
+    // cluster sum
+    private double[] coordinates; // coordinates (if point or centroid) - coordinates sum (if cluster sum)
+    private IntWritable id; // id of the cluster / centroid
+    private int clusterElementsNumber; // points belonging to a cluster
 
+    // empty constructor
     public PointWritable() {
     }
 
@@ -27,6 +29,7 @@ public class PointWritable implements Writable {
         this.clusterElementsNumber = point.getClusterElementsNumber();
     }
 
+    // some other constructors
     public PointWritable(int d) { // constructor for a 0-initialized point of dimension d
         this.id = new IntWritable(0);
         this.coordinates = new double[d];
@@ -52,6 +55,7 @@ public class PointWritable implements Writable {
         this.clusterElementsNumber = numero;
     }
 
+    // setters
     private void set(int index, double value) {
         this.getCoordinates()[index] = value;
     }
@@ -67,26 +71,28 @@ public class PointWritable implements Writable {
         this.setClusterElementsNumber(clusterElementsNumber);
     }
 
-    public IntWritable getID() { // getter for id
-        return this.id;
-    }
-
-    public int getClusterElementsNumber() {
-        return this.clusterElementsNumber;
-    }
-
     private void setClusterElementsNumber(int new_clusterElementsNumber) {
         this.clusterElementsNumber = new_clusterElementsNumber;
+    }
+
+    // getters
+    public IntWritable getID() { // getter for id
+        return this.id;
     }
 
     public int get_int_ID() { // getter for id
         return this.id.get();
     }
 
+    public int getClusterElementsNumber() {
+        return this.clusterElementsNumber;
+    }
+
     public double[] getCoordinates() {
         return coordinates;
     }
 
+    // write and read methods required by the Writable interface
     @Override
     public void write(DataOutput out) throws IOException {
         out.writeInt(coordinates.length);
@@ -111,13 +117,18 @@ public class PointWritable implements Writable {
         clusterElementsNumber = in.readInt();
     }
 
+    // sum a point (or a partial sum) to an instance of PointWritable
     public void sumPoint(PointWritable point) {
+        // increment each coordinate by the respective one
         for (int i = 0; i < this.coordinates.length; i++) {
             this.coordinates[i] += point.getCoordinates()[i];
         }
+        // check the number of elements of the PointWritable instance to add
         if (point.getClusterElementsNumber() > 0) {
+            // if the counter is greater than 0, we are adding a partial sum
             this.clusterElementsNumber += point.getClusterElementsNumber();
         } else {
+            // if the counter is zero, we are adding a single point
             this.clusterElementsNumber++;
         }
     }
@@ -126,6 +137,8 @@ public class PointWritable implements Writable {
         IntWritable nearestCentroid = new IntWritable(0);
         double nearestDistance = Double.MAX_VALUE;
 
+        // for each centroid compute the euclidean distance from the current point
+        // (this)
         for (PointWritable centroid : centroids) {
 
             double sum = 0.0;
@@ -136,6 +149,7 @@ public class PointWritable implements Writable {
             }
             double distance = Math.sqrt(sum);
 
+            // take the ID of the centroid with the minimum distance
             if (distance < nearestDistance) {
                 nearestDistance = distance;
                 nearestCentroid = centroid.getID();
@@ -144,6 +158,8 @@ public class PointWritable implements Writable {
         return nearestCentroid;
     }
 
+    // method to convert a PointWritable instance to string
+    // i.e. print the coordinates
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -153,7 +169,7 @@ public class PointWritable implements Writable {
             sb.append(", ");
         }
         sb.delete(sb.length() - 2, sb.length());
-        sb.append("]"); // , num punti appartenenti al cluster: " clusterElementsNumber );
+        sb.append("]");
         return sb.toString().trim();
     }
 

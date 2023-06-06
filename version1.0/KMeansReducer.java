@@ -22,20 +22,21 @@ import org.apache.hadoop.mapreduce.Reducer;
 public class KMeansReducer
         extends Reducer<IntWritable, PointWritable, IntWritable, PointWritable> {
 
-    private int k, d;
-
     @Override
     protected void reduce(IntWritable key, Iterable<PointWritable> partialSums, Context context)
             throws IOException, InterruptedException {
 
         Configuration conf = context.getConfiguration();
         // Retrieve k and d from the configuration
-        this.k = conf.getInt("k", -1);
-        this.d = conf.getInt("d", -1);
+        int k = conf.getInt("k", -1);
+        int d = conf.getInt("d", -1);
 
         // Initialize cluster sum value to 0
         PointWritable clusterSum = new PointWritable(d);
 
+        // for each partial sum (or datapoint in the case the combiner is not exploit)
+        // passed to the reducer, sum it to the total sum of the current cluster
+        // (given from the key)
         for (PointWritable partialSum : partialSums) {
             clusterSum.sumPoint(partialSum);
         }
@@ -48,14 +49,20 @@ public class KMeansReducer
     }
 
     private PointWritable calculateNewCentroid(PointWritable clusterSum, IntWritable id) {
+        // get the components of the total sum of the cluster points
         double[] sum = clusterSum.getCoordinates();
+        // get the number of the points belonging to the cluster
         int count = clusterSum.getClusterElementsNumber();
+        // allocate an array for the coordinates of the new centroid
         double[] centroid = new double[sum.length];
 
+        // calculate each coordinate of the new centroid performing the mean of each
+        // feature of the cluster points
         for (int i = 0; i < sum.length; i++) {
             centroid[i] = sum[i] / count;
         }
 
+        // return the new centroid
         return new PointWritable(centroid, id);
     }
 

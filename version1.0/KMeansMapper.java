@@ -32,6 +32,7 @@ public class KMeansMapper extends Mapper<LongWritable, Text, IntWritable, PointW
         this.k = conf.getInt("k", -1);
         this.d = conf.getInt("d", -1);
 
+        // load last iteration centroids from HDFS
         centroids = CentroidUtils.loadCentroids("f", "kmeans/oldCentroids.txt");
 
     }
@@ -54,18 +55,24 @@ public class KMeansMapper extends Mapper<LongWritable, Text, IntWritable, PointW
     }
 
     private PointWritable textToPoint(Text text, Context context) throws IOException, InterruptedException {
+        // get the line from the input
         String line = text.toString();
+
+        // chek if the line is valid
         if (line == null || line.length() == 0)
             return null;
 
+        // split the line in tokens using comma as separator
         String[] tokens = line.trim().split(",");
 
+        // if the number of tokens is not equal to the dimension of a datapoint,
+        // throw an exeption
         if (tokens.length != d) {
             throw new IllegalArgumentException(
                     "Each line must have d tokens, where the first token is the ID and the remaining d tokens are the coordinates.");
         }
 
-        // Parse the coordinates
+        // Parse the coordinates of the datapoint
         double[] coordinates = new double[d];
         for (int i = 0; i < d; i++) {
             coordinates[i] = Double.parseDouble(tokens[i]);
