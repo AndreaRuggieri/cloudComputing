@@ -71,3 +71,12 @@ for n in n_values:
                 embed = DiscordEmbed(title='JOB ESEGUITO', description=stat_output, color='03b2f8')
                 webhook.add_embed(embed)
                 webhook.execute()
+
+# Send notification to Discord
+webhook = DiscordWebhook(url=webhook_url)
+
+# Send notification to Discord
+webhook = DiscordWebhook(url=webhook_url)
+embed = DiscordEmbed(title='CICLO COMPLETATO', description="SIUUUUUUUM", color='ff0000')
+webhook.add_embed(embed)
+webhook.execute()

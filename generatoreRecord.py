@@ -4,7 +4,7 @@ import numpy as np
 
 def generate_file(n, d, c):
 
-    points, labels = make_blobs(n_samples=n, centers=c, n_features=d, shuffle=True, center_box=(0, 1000))
+    points, labels = make_blobs(n_samples=n, centers=c, n_features=d, shuffle=True, center_box=(0, 1000), cluster_std=50)
 
     # Create list to store indices of points from different clusters
     idxs = []

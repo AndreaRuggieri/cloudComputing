@@ -36,15 +36,18 @@ public class CentroidUtils {
                 String[] parts = line.split(",");
                 IntWritable id = new IntWritable(i);
                 double[] coordinates = new double[parts.length];
-                for (int j = 1; j < parts.length; j++) {
-                    coordinates[j - 1] = Double.parseDouble(parts[j]);
+                for (int j = 0; j < parts.length; j++) {
+                    coordinates[j] = Double.parseDouble(parts[j]);
                 }
                 centroids.add(new PointWritable(coordinates, id));
             }
         }
 
-        // Sort centroids by id
-        centroids.sort(Comparator.comparingInt(PointWritable::get_int_ID));
+        System.out.println("CENTROIDS LENGHT: " + centroids.size());
+
+        for (PointWritable centroid : centroids) {
+            System.out.println(centroid.toString());
+        }
 
         return centroids.toArray(new PointWritable[0]);
     }

@@ -3,7 +3,7 @@ from sklearn.datasets import make_blobs
 
 def generate_file(n, d, c):
     
-    points, y = make_blobs(n_samples=n, centers=c, n_features=d, shuffle=True, center_box=(0, 1000))
+    points, y = make_blobs(n_samples=n, centers=c, n_features=d, shuffle=True, center_box=(0, 1000), cluster_std=50 )
 
     filename = f"input_{n}_{d}_{c}.txt"
 
