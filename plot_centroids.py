@@ -9,7 +9,7 @@ import matplotlib.cm as cm
 # Root directory
 root_dir = './'
 # Input directory
-input_dir = './../oldInputs'
+input_dir = './../firstInputs'
 
 # Regex to extract the centroid id and its coordinates
 pattern = r'(\d+)\s+\[([\d.,\s]+)\]'
@@ -69,7 +69,7 @@ for dir in test_dirs:
                     if match:
                         id = int(match.group(1))
                         coords = json.loads('[' + match.group(2) + ']')
-                        data[dir]['centroids'][iteration][id] = coords
+                        data[dir]['centroids'][iteration][id-1] = coords
 
     # If there's no id from an iteration and the previous, assume that the new position at i iterations for this centroid is not changed and is equal to the previous.
     for i in range(1, num_iterations):
@@ -94,7 +94,7 @@ for dir, dir_data in data.items():
     for id, color in zip(range(num_clusters), colors):
         x = [dir_data['centroids'][iteration][id][0] for iteration in range(num_iterations)]
         y = [dir_data['centroids'][iteration][id][1] for iteration in range(num_iterations)]
-        plt.plot(x, y, '-o', label=f'Centroid {id}') #, color=color)
+        plt.plot(x, y, '-o', label=f'Centroid {id}', color=color)
     plt.xlabel('X Position')
     plt.ylabel('Y Position')
     plt.legend()
