@@ -13,7 +13,7 @@ public class PointWritable implements Writable {
     // cluster sum
     private double[] coordinates; // coordinates (if point or centroid) - coordinates sum (if cluster sum)
     private IntWritable id; // id of the cluster / centroid
-    private int clusterElementsNumber; // points belonging to a cluster
+    private int clusterElementsNumber; // number of points belonging to a cluster
 
     // empty constructor
     public PointWritable() {
