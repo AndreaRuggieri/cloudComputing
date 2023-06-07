@@ -94,8 +94,9 @@ for dir, dir_data in data.items():
     for id, color in zip(range(num_clusters), colors):
         x = [dir_data['centroids'][iteration][id][0] for iteration in range(num_iterations)]
         y = [dir_data['centroids'][iteration][id][1] for iteration in range(num_iterations)]
-        plt.plot(x, y, '-o', label=f'Centroid {id}', color=color)
+        plt.plot(x, y, '-o', label=f'Centroid {id + 1}', color=color)
     plt.xlabel('X Position')
     plt.ylabel('Y Position')
     plt.legend()
+    print(dir)
     plt.show()
