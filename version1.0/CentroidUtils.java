@@ -23,8 +23,8 @@ public class CentroidUtils {
         List<PointWritable> centroids = new ArrayList<>();
         String line;
 
-        Configuration conf = new Configuration();
-        FileSystem fs = FileSystem.get(conf);
+        Configuration conf = new Configuration();  //istanza che contiene le configurazioni 
+        FileSystem fs = FileSystem.get(conf); //prende un filesystem e ci inserisce i dati della configurazione
 
         Path filePath = new Path(filename);
         // check if the input file exists, throw exception if not
@@ -32,7 +32,7 @@ public class CentroidUtils {
             throw new IOException("File does not exist: " + filename);
         }
 
-        try (FSDataInputStream in = fs.open(filePath);
+        try (FSDataInputStream in = fs.open(filePath); //utilizzo try.catch per ogni operazione di scrittura e lettura di java
                 BufferedReader reader = new BufferedReader(new InputStreamReader(in))) {
             int i = 0;
             while (i < k && (line = reader.readLine()) != null) {
